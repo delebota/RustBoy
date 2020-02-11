@@ -1,0 +1,11 @@
+[package]
+name = "RustBoy"
+version = "0.1.0"
+authors = ["Tom Delebo"]
+edition = "2018"
+
+[dependencies]
+sdl2 = "0.33"
+clap = {version = "2.33", features = ["yaml"]}
+log = "0.4"
+pretty_env_logger = "0.4"

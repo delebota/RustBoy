@@ -1,0 +1,23 @@
+name: RustBoy
+version: "0.1.0-alpha"
+author: Tom Delebo
+about: GameBoy Emulator written in Rust and SDL2.
+args:
+  - bios:
+      short: b
+      long: bios
+      value_name: FILE
+      help: Sets the BIN file to load that contains the BIOS. If no file is specified RustBoy will boot straight into the specified ROM.
+      takes_value: true
+  - debug_vram:
+      short: d
+      long: debug_vram
+      value_name: BOOL
+      help: Enable/Disable VRAM Debug window. (May slow performance)
+      takes_value: true
+  - rom:
+      short: r
+      long: rom
+      value_name: FILE
+      help: Sets the ROM file to load. If no ROM is specified RustBoy will hang after BIOS execution, or immediately if no BIOS is loaded.
+      takes_value: true

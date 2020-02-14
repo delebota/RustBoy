@@ -1,5 +1,4 @@
 /.idea
 /target
-/roms/*.bin
-/roms/*.gb
-/roms/*.gbc
+/roms
+out.log

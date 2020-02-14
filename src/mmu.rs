@@ -3,6 +3,7 @@ use std::io;
 use std::io::Read;
 use std::process::exit;
 
+use crate::cartridge::{Cartridge, ROM_ONLY};
 use crate::gpu::GPU;
 
 //TODO
@@ -28,6 +29,7 @@ pub struct MMU {
     interrupt_enable_register: u8, // Int Enable Reg,  0xFFFF
 
     active_rom_bank: u8,
+    cartridge_type: u8,
     pub is_bios_mapped: bool
 }
 
@@ -44,7 +46,8 @@ impl MMU {
         let io_ports = [0; 64];
         let zram = [0; 127];
         let interrupt_enable_register = 0;
-        let active_rom_bank = 0;
+        let active_rom_bank = 1;
+        let cartridge_type = ROM_ONLY;
         let is_bios_mapped = false;
 
         MMU {
@@ -58,6 +61,7 @@ impl MMU {
             zram,
             interrupt_enable_register,
             active_rom_bank,
+            cartridge_type,
             is_bios_mapped
         }
     }
@@ -182,12 +186,17 @@ impl MMU {
             let addr_nibble_3 = (address & 0x00F0) >> 4;
 
             match addr_nibble_1 {
-                0x0 | 0x1 | 0x2 | 0x3 => { // ROM Bank 0
+                0x0 | 0x1 => { // ROM Bank 0
                     warn!("Tried to write to ROM Bank 0. {:#06X} = {}", address, value);
                     return;
                 },
+                0x2 | 0x3 => {
+                    trace!("Changing active ROM bank.");
+                    self.update_active_rom_bank(value);
+                    return;
+                },
                 0x4 | 0x5 | 0x6 | 0x7 => { // Switchable ROM Bank
-                    warn!("Tried to write to Switchable ROM Bank");
+                    warn!("Tried to write to Switchable ROM Bank. {:#06X} = {}", address, value);
                     return;
                 },
                 0x8 | 0x9 => { // Video RAM
@@ -263,5 +272,23 @@ impl MMU {
     pub fn write_word(&mut self, address: u16, value: u16) {
         self.write_byte(address, (value & 0xFF) as u8);
         self.write_byte(address + 1, (value >> 8) as u8);
+    }
+
+    pub fn set_cartridge_type(&mut self, value: u8) {
+        self.cartridge_type = value;
+    }
+
+    fn update_active_rom_bank(&self, value: u8) {
+        //TODO - support MBC1,2,3,5 cart types, maybe others...
+        match self.cartridge_type {
+            ROM_ONLY => {
+                trace!("Tried to change active ROM bank on a ROM_ONLY cartridge.");
+                return;
+            },
+            _ => {
+                trace!("Tried to change active ROM bank on an unknown/unsupported cartridge type - {}", self.cartridge_type);
+                exit(1);
+            }
+        }
     }
 }

@@ -16,7 +16,7 @@ const CARRY_BIT: u8       = 0x10;
 //const SERIAL_INTERRUPT_BIT: u8 = (0x01 << 3);
 //const JOYPAD_INTERRUPT_BIT: u8 = (0x01 << 4);
 
-static OPERATION_BYTES: [u16; 256] = [
+const OPERATION_BYTES: [u16; 256] = [
 //  0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
     1, 3, 1, 1, 1, 1, 2, 1, 3, 1, 1, 1, 1, 1, 2, 1, // 0
     1, 3, 1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1, // 1
@@ -36,7 +36,7 @@ static OPERATION_BYTES: [u16; 256] = [
     2, 1, 1, 1, 0, 1, 2, 1, 2, 1, 3, 1, 0, 0, 2, 1  // F
 ];
 
-static OPERATION_MACHINE_CYCLES: [u32; 256] = [
+const OPERATION_MACHINE_CYCLES: [u32; 256] = [
 //  0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
     1, 3, 2, 2, 1, 1, 2, 1, 5, 2, 2, 2, 1, 1, 2, 1, // 0
     1, 3, 2, 2, 1, 1, 2, 1, 3, 2, 2, 2, 1, 1, 2, 1, // 1
@@ -56,7 +56,7 @@ static OPERATION_MACHINE_CYCLES: [u32; 256] = [
     3, 3, 2, 1, 0, 4, 2, 4, 3, 2, 4, 1, 0, 0, 2, 4  // F
 ];
 
-static OPERATION_MACHINE_CYCLES_BRANCHED: [u32; 256] = [
+const OPERATION_MACHINE_CYCLES_BRANCHED: [u32; 256] = [
 //  0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
     1, 3, 2, 2, 1, 1, 2, 1, 5, 2, 2, 2, 1, 1, 2, 1, // 0
     1, 3, 2, 2, 1, 1, 2, 1, 3, 2, 2, 2, 1, 1, 2, 1, // 1
@@ -243,6 +243,10 @@ impl CPU {
 
                 let result = self.rotate_right(self.read_register_a());
                 self.write_register_a(result);
+            },
+            0x10 => {
+                trace!("{:#04X}: STOP.", opcode);
+                //TODO
             },
             0x11 => {
                 trace!("{:#04X}: LD DE,d16. DE:{:#06X} <- d16:{:#06X}", opcode, self.read_register_de(), mmu.read_word(self.program_counter + 1));
@@ -868,6 +872,10 @@ impl CPU {
                 trace!("{:#04X}: LD (HL),L. HL:{:#06X} <- L:{:#04X}", opcode, self.read_register_hl(), self.read_register_l());
 
                 mmu.write_byte(self.read_register_hl(), self.read_register_b());
+            },
+            0x76 => {
+                trace!("{:#04X}: HALT.", opcode);
+                //TODO
             },
             0x77 => {
                 trace!("{:#04X}: LD (HL),A. HL:{:#06X} <- A: {:#04X}", opcode, self.read_register_hl(), self.read_register_a());
@@ -1727,45 +1735,1477 @@ impl CPU {
         let opcode = mmu.read_byte(self.program_counter + 1);
 
         match opcode {
+            0x00 => {
+                trace!("{:#04X}: RLC B. B:{:#04X}", opcode, self.read_register_b());
+
+                let result = self.rotate_left(self.read_register_b());
+                self.write_register_b(result);
+            },
+            0x01 => {
+                trace!("{:#04X}: RLC C. C:{:#04X}", opcode, self.read_register_c());
+
+                let result = self.rotate_left(self.read_register_c());
+                self.write_register_c(result);
+            },
+            0x02 => {
+                trace!("{:#04X}: RLC D. D:{:#04X}", opcode, self.read_register_d());
+
+                let result = self.rotate_left(self.read_register_d());
+                self.write_register_d(result);
+            },
+            0x03 => {
+                trace!("{:#04X}: RLC E. E:{:#04X}", opcode, self.read_register_e());
+
+                let result = self.rotate_left(self.read_register_e());
+                self.write_register_e(result);
+            },
+            0x04 => {
+                trace!("{:#04X}: RLC H. H:{:#04X}", opcode, self.read_register_h());
+
+                let result = self.rotate_left(self.read_register_h());
+                self.write_register_h(result);
+            },
+            0x05 => {
+                trace!("{:#04X}: RLC L. L:{:#04X}", opcode, self.read_register_l());
+
+                let result = self.rotate_left(self.read_register_l());
+                self.write_register_l(result);
+            },
+            0x06 => {
+                trace!("{:#04X}: RLC (HL). (HL):{:#04X}", opcode, mmu.read_byte(self.read_register_hl()));
+
+                let result = self.rotate_left(mmu.read_byte(self.read_register_hl()));
+                mmu.write_byte(self.read_register_hl(), result);
+            },
+            0x07 => {
+                trace!("{:#04X}: RLC A. A:{:#04X}", opcode, self.read_register_a());
+
+                let result = self.rotate_left(self.read_register_a());
+                self.write_register_a(result);
+            },
+            0x08 => {
+                trace!("{:#04X}: RRC B. B:{:#04X}", opcode, self.read_register_b());
+
+                let result = self.rotate_right(self.read_register_b());
+                self.write_register_b(result);
+            },
+            0x09 => {
+                trace!("{:#04X}: RRC C. C:{:#04X}", opcode, self.read_register_c());
+
+                let result = self.rotate_right(self.read_register_c());
+                self.write_register_c(result);
+            },
+            0x0A => {
+                trace!("{:#04X}: RRC D. D:{:#04X}", opcode, self.read_register_d());
+
+                let result = self.rotate_right(self.read_register_d());
+                self.write_register_d(result);
+            },
+            0x0B => {
+                trace!("{:#04X}: RRC E. E:{:#04X}", opcode, self.read_register_e());
+
+                let result = self.rotate_right(self.read_register_e());
+                self.write_register_e(result);
+            },
+            0x0C => {
+                trace!("{:#04X}: RRC H. H:{:#04X}", opcode, self.read_register_h());
+
+                let result = self.rotate_right(self.read_register_h());
+                self.write_register_h(result);
+            },
+            0x0D => {
+                trace!("{:#04X}: RRC L. L:{:#04X}", opcode, self.read_register_l());
+
+                let result = self.rotate_right(self.read_register_l());
+                self.write_register_l(result);
+            },
+            0x0E => {
+                trace!("{:#04X}: RRC (HL). (HL):{:#04X}", opcode, mmu.read_byte(self.read_register_hl()));
+
+                let result = self.rotate_right(mmu.read_byte(self.read_register_hl()));
+                mmu.write_byte(self.read_register_hl(), result);
+            },
+            0x0F => {
+                trace!("{:#04X}: RRC A. A:{:#04X}", opcode, self.read_register_a());
+
+                let result = self.rotate_right(self.read_register_a());
+                self.write_register_a(result);
+            },
+            0x10 => {
+                trace!("{:#04X}: RL B. B:{:#04X}", opcode, self.read_register_b());
+
+                let result = self.rotate_left_through_carry(self.read_register_b());
+                self.write_register_b(result);
+            },
             0x11 => {
-                trace!("0xCB {:#04X}: RL C. C: {:#04X}", opcode, self.read_register_c());
+                trace!("{:#04X}: RL C. C:{:#04X}", opcode, self.read_register_c());
 
-                // Store carry flag
-                let carry = self.read_flag(CARRY_BIT);
-                let c = self.read_register_c();
+                let result = self.rotate_left_through_carry(self.read_register_c());
+                self.write_register_c(result);
+            },
+            0x12 => {
+                trace!("{:#04X}: RL D. D:{:#04X}", opcode, self.read_register_d());
 
-                // Unset flag bits
-                self.unset_flag_bit(SUBTRACTION_BIT);
-                self.unset_flag_bit(HALF_CARRY_BIT);
+                let result = self.rotate_left_through_carry(self.read_register_d());
+                self.write_register_d(result);
+            },
+            0x13 => {
+                trace!("{:#04X}: RL E. E:{:#04X}", opcode, self.read_register_e());
 
-                if self.most_significant_bit(c) > 0 {
-                    self.set_flag_bit(CARRY_BIT);
-                } else {
-                    self.unset_flag_bit(CARRY_BIT);
-                }
+                let result = self.rotate_left_through_carry(self.read_register_e());
+                self.write_register_e(result);
+            },
+            0x14 => {
+                trace!("{:#04X}: RL H. H:{:#04X}", opcode, self.read_register_h());
 
-                self.write_register_c((c << 1) | carry);
+                let result = self.rotate_left_through_carry(self.read_register_h());
+                self.write_register_h(result);
+            },
+            0x15 => {
+                trace!("{:#04X}: RL L. L:{:#04X}", opcode, self.read_register_l());
 
-                // Set zero bit
-                if self.read_register_c() == 0 {
-                    self.set_flag_bit(ZERO_BIT);
-                } else {
-                    self.unset_flag_bit(ZERO_BIT);
-                }
+                let result = self.rotate_left_through_carry(self.read_register_l());
+                self.write_register_l(result);
+            },
+            0x16 => {
+                trace!("{:#04X}: RL (HL). (HL):{:#04X}", opcode, mmu.read_byte(self.read_register_hl()));
+
+                let result = self.rotate_left_through_carry(mmu.read_byte(self.read_register_hl()));
+                mmu.write_byte(self.read_register_hl(), result);
+            },
+            0x17 => {
+                trace!("{:#04X}: RL A. A:{:#04X}", opcode, self.read_register_a());
+
+                let result = self.rotate_left_through_carry(self.read_register_a());
+                self.write_register_a(result);
+            },
+            0x18 => {
+                trace!("{:#04X}: RR B. B:{:#04X}", opcode, self.read_register_b());
+
+                let result = self.rotate_right_through_carry(self.read_register_b());
+                self.write_register_b(result);
+            },
+            0x19 => {
+                trace!("{:#04X}: RR C. C:{:#04X}", opcode, self.read_register_c());
+
+                let result = self.rotate_right_through_carry(self.read_register_c());
+                self.write_register_c(result);
+            },
+            0x1A => {
+                trace!("{:#04X}: RR D. D:{:#04X}", opcode, self.read_register_d());
+
+                let result = self.rotate_right_through_carry(self.read_register_d());
+                self.write_register_d(result);
+            },
+            0x1B => {
+                trace!("{:#04X}: RR E. E:{:#04X}", opcode, self.read_register_e());
+
+                let result = self.rotate_right_through_carry(self.read_register_e());
+                self.write_register_e(result);
+            },
+            0x1C => {
+                trace!("{:#04X}: RR H. H:{:#04X}", opcode, self.read_register_h());
+
+                let result = self.rotate_right_through_carry(self.read_register_h());
+                self.write_register_h(result);
+            },
+            0x1D => {
+                trace!("{:#04X}: RR L. L:{:#04X}", opcode, self.read_register_l());
+
+                let result = self.rotate_right_through_carry(self.read_register_l());
+                self.write_register_l(result);
+            },
+            0x1E => {
+                trace!("{:#04X}: RR (HL). (HL):{:#04X}", opcode, mmu.read_byte(self.read_register_hl()));
+
+                let result = self.rotate_right_through_carry(mmu.read_byte(self.read_register_hl()));
+                mmu.write_byte(self.read_register_hl(), result);
+            },
+            0x1F => {
+                trace!("{:#04X}: RR A. A:{:#04X}", opcode, self.read_register_a());
+
+                let result = self.rotate_right_through_carry(self.read_register_a());
+                self.write_register_a(result);
+            },
+            0x20 => {
+                trace!("0xCB {:#04X}: SLA B. B:{:#04X}", opcode, self.read_register_b());
+
+                let result = self.shift_left(self.read_register_b());
+                self.write_register_b(result);
+            },
+            0x21 => {
+                trace!("0xCB {:#04X}: SLA C. C:{:#04X}", opcode, self.read_register_c());
+
+                let result = self.shift_left(self.read_register_c());
+                self.write_register_c(result);
+            },
+            0x22 => {
+                trace!("0xCB {:#04X}: SLA D. D:{:#04X}", opcode, self.read_register_d());
+
+                let result = self.shift_left(self.read_register_d());
+                self.write_register_d(result);
+            },
+            0x23 => {
+                trace!("0xCB {:#04X}: SLA E. E:{:#04X}", opcode, self.read_register_e());
+
+                let result = self.shift_left(self.read_register_e());
+                self.write_register_e(result);
+            },
+            0x24 => {
+                trace!("0xCB {:#04X}: SLA H. H:{:#04X}", opcode, self.read_register_h());
+
+                let result = self.shift_left(self.read_register_h());
+                self.write_register_h(result);
+            },
+            0x25 => {
+                trace!("0xCB {:#04X}: SLA L. L:{:#04X}", opcode, self.read_register_l());
+
+                let result = self.shift_left(self.read_register_l());
+                self.write_register_l(result);
+            },
+            0x26 => {
+                trace!("0xCB {:#04X}: SLA (HL). (HL):{:#04X}", opcode, mmu.read_byte(self.read_register_hl()));
+
+                let result = self.shift_left(mmu.read_byte(self.read_register_hl()));
+                mmu.write_byte(self.read_register_hl(), result);
+            },
+            0x27 => {
+                trace!("0xCB {:#04X}: SLA A. A:{:#04X}", opcode, self.read_register_a());
+
+                let result = self.shift_left(self.read_register_a());
+                self.write_register_a(result);
+            },
+            0x28 => {
+                trace!("0xCB {:#04X}: SRA B. B:{:#04X}", opcode, self.read_register_b());
+
+                let result = self.shift_right_preserve_msb(self.read_register_b());
+                self.write_register_b(result);
+            },
+            0x29 => {
+                trace!("0xCB {:#04X}: SRA C. C:{:#04X}", opcode, self.read_register_c());
+
+                let result = self.shift_right_preserve_msb(self.read_register_c());
+                self.write_register_c(result);
+            },
+            0x2A => {
+                trace!("0xCB {:#04X}: SRA D. D:{:#04X}", opcode, self.read_register_d());
+
+                let result = self.shift_right_preserve_msb(self.read_register_d());
+                self.write_register_d(result);
+            },
+            0x2B => {
+                trace!("0xCB {:#04X}: SRA E. E:{:#04X}", opcode, self.read_register_e());
+
+                let result = self.shift_right_preserve_msb(self.read_register_e());
+                self.write_register_e(result);
+            },
+            0x2C => {
+                trace!("0xCB {:#04X}: SRA H. H:{:#04X}", opcode, self.read_register_h());
+
+                let result = self.shift_right_preserve_msb(self.read_register_h());
+                self.write_register_h(result);
+            },
+            0x2D => {
+                trace!("0xCB {:#04X}: SRA L. L:{:#04X}", opcode, self.read_register_l());
+
+                let result = self.shift_right_preserve_msb(self.read_register_l());
+                self.write_register_l(result);
+            },
+            0x2E => {
+                trace!("0xCB {:#04X}: SRA (HL). (HL):{:#04X}", opcode, mmu.read_byte(self.read_register_hl()));
+
+                let result = self.shift_right_preserve_msb(mmu.read_byte(self.read_register_hl()));
+                mmu.write_byte(self.read_register_hl(), result);
+            },
+            0x2F => {
+                trace!("0xCB {:#04X}: SRA A. A:{:#04X}", opcode, self.read_register_a());
+
+                let result = self.shift_right_preserve_msb(self.read_register_a());
+                self.write_register_a(result);
+            },
+            0x30 => {
+                trace!("0xCB {:#04X}: SWAP B. B:{:#04X}", opcode, self.read_register_b());
+
+                let result = self.swap_byte(self.read_register_b());
+                self.write_register_b(result);
+            },
+            0x31 => {
+                trace!("0xCB {:#04X}: SWAP C. C:{:#04X}", opcode, self.read_register_c());
+
+                let result = self.swap_byte(self.read_register_c());
+                self.write_register_c(result);
+            },
+            0x32 => {
+                trace!("0xCB {:#04X}: SWAP D. D:{:#04X}", opcode, self.read_register_d());
+
+                let result = self.swap_byte(self.read_register_d());
+                self.write_register_d(result);
+            },
+            0x33 => {
+                trace!("0xCB {:#04X}: SWAP E. E:{:#04X}", opcode, self.read_register_e());
+
+                let result = self.swap_byte(self.read_register_e());
+                self.write_register_e(result);
+            },
+            0x34 => {
+                trace!("0xCB {:#04X}: SWAP H. H:{:#04X}", opcode, self.read_register_h());
+
+                let result = self.swap_byte(self.read_register_h());
+                self.write_register_h(result);
+            },
+            0x35 => {
+                trace!("0xCB {:#04X}: SWAP L. L:{:#04X}", opcode, self.read_register_l());
+
+                let result = self.swap_byte(self.read_register_l());
+                self.write_register_l(result);
+            },
+            0x36 => {
+                trace!("0xCB {:#04X}: SWAP (HL). (HL):{:#04X}", opcode, mmu.read_byte(self.read_register_hl()));
+
+                let result = self.swap_byte(mmu.read_byte(self.read_register_hl()));
+                mmu.write_byte(self.read_register_hl(), result);
+            },
+            0x37 => {
+                trace!("0xCB {:#04X}: SWAP A. A:{:#04X}", opcode, self.read_register_a());
+
+                let result = self.swap_byte(self.read_register_a());
+                self.write_register_a(result);
+            },
+            0x38 => {
+                trace!("0xCB {:#04X}: SRL B. B:{:#04X}", opcode, self.read_register_b());
+
+                let result = self.shift_right(self.read_register_b());
+                self.write_register_b(result);
+            },
+            0x39 => {
+                trace!("0xCB {:#04X}: SRL C. C:{:#04X}", opcode, self.read_register_c());
+
+                let result = self.shift_right(self.read_register_c());
+                self.write_register_c(result);
+            },
+            0x3A => {
+                trace!("0xCB {:#04X}: SRL D. D:{:#04X}", opcode, self.read_register_d());
+
+                let result = self.shift_right(self.read_register_d());
+                self.write_register_d(result);
+            },
+            0x3B => {
+                trace!("0xCB {:#04X}: SRL E. E:{:#04X}", opcode, self.read_register_e());
+
+                let result = self.shift_right(self.read_register_e());
+                self.write_register_e(result);
+            },
+            0x3C => {
+                trace!("0xCB {:#04X}: SRL H. H:{:#04X}", opcode, self.read_register_h());
+
+                let result = self.shift_right(self.read_register_h());
+                self.write_register_h(result);
+            },
+            0x3D => {
+                trace!("0xCB {:#04X}: SRL L. L:{:#04X}", opcode, self.read_register_l());
+
+                let result = self.shift_right(self.read_register_l());
+                self.write_register_l(result);
+            },
+            0x3E => {
+                trace!("0xCB {:#04X}: SRL (HL). (HL):{:#04X}", opcode, mmu.read_byte(self.read_register_hl()));
+
+                let result = self.shift_right(mmu.read_byte(self.read_register_hl()));
+                mmu.write_byte(self.read_register_hl(), result);
+            },
+            0x3F => {
+                trace!("0xCB {:#04X}: SRL A. A:{:#04X}", opcode, self.read_register_a());
+
+                let result = self.shift_right(self.read_register_a());
+                self.write_register_a(result);
+            },
+            0x40 => {
+                trace!("0xCB {:#04X}: BIT 0,B. B:{:#04X}", opcode, self.read_register_b());
+
+                self.test_bit(self.read_register_b(), 0);
+            },
+            0x41 => {
+                trace!("0xCB {:#04X}: BIT 0,C. C:{:#04X}", opcode, self.read_register_c());
+
+                self.test_bit(self.read_register_c(), 0);
+            },
+            0x42 => {
+                trace!("0xCB {:#04X}: BIT 0,D. D:{:#04X}", opcode, self.read_register_d());
+
+                self.test_bit(self.read_register_d(), 0);
+            },
+            0x43 => {
+                trace!("0xCB {:#04X}: BIT 0,E. E:{:#04X}", opcode, self.read_register_e());
+
+                self.test_bit(self.read_register_e(), 0);
+            },
+            0x44 => {
+                trace!("0xCB {:#04X}: BIT 0,H. H:{:#04X}", opcode, self.read_register_h());
+
+                self.test_bit(self.read_register_h(), 0);
+            },
+            0x45 => {
+                trace!("0xCB {:#04X}: BIT 0,L. L:{:#04X}", opcode, self.read_register_l());
+
+                self.test_bit(self.read_register_l(), 0);
+            },
+            0x46 => {
+                trace!("0xCB {:#04X}: BIT 0,(HL). (HL):{:#04X}", opcode, mmu.read_byte(self.read_register_hl()));
+
+                self.test_bit(smmu.read_byte(self.read_register_hl()), 0);
+            },
+            0x47 => {
+                trace!("0xCB {:#04X}: BIT 0,A. A:{:#04X}", opcode, self.read_register_a());
+
+                self.test_bit(self.read_register_a(), 0);
+            },
+            0x48 => {
+                trace!("0xCB {:#04X}: BIT 1,B. B:{:#04X}", opcode, self.read_register_b());
+
+                self.test_bit(self.read_register_b(), 1);
+            },
+            0x49 => {
+                trace!("0xCB {:#04X}: BIT 1,C. C:{:#04X}", opcode, self.read_register_c());
+
+                self.test_bit(self.read_register_c(), 1);
+            },
+            0x4A => {
+                trace!("0xCB {:#04X}: BIT 1,D. D:{:#04X}", opcode, self.read_register_d());
+
+                self.test_bit(self.read_register_d(), 1);
+            },
+            0x4B => {
+                trace!("0xCB {:#04X}: BIT 1,E. E:{:#04X}", opcode, self.read_register_e());
+
+                self.test_bit(self.read_register_e(), 1);
+            },
+            0x4C => {
+                trace!("0xCB {:#04X}: BIT 1,H. H:{:#04X}", opcode, self.read_register_h());
+
+                self.test_bit(self.read_register_h(), 1);
+            },
+            0x4D => {
+                trace!("0xCB {:#04X}: BIT 1,L. L:{:#04X}", opcode, self.read_register_l());
+
+                self.test_bit(self.read_register_l(), 1);
+            },
+            0x4E => {
+                trace!("0xCB {:#04X}: BIT 1,(HL). (HL):{:#04X}", opcode, mmu.read_byte(self.read_register_hl()));
+
+                self.test_bit(mmu.read_byte(self.read_register_hl()), 1);
+            },
+            0x4F => {
+                trace!("0xCB {:#04X}: BIT 1,A. A:{:#04X}", opcode, self.read_register_a());
+
+                self.test_bit(self.read_register_a(), 1);
+            },
+            0x50 => {
+                trace!("0xCB {:#04X}: BIT 2,B. B:{:#04X}", opcode, self.read_register_b());
+
+                self.test_bit(self.read_register_b(), 2);
+            },
+            0x51 => {
+                trace!("0xCB {:#04X}: BIT 2,C. C:{:#04X}", opcode, self.read_register_c());
+
+                self.test_bit(self.read_register_c(), 2);
+            },
+            0x52 => {
+                trace!("0xCB {:#04X}: BIT 2,D. D:{:#04X}", opcode, self.read_register_d());
+
+                self.test_bit(self.read_register_d(), 2);
+            },
+            0x53 => {
+                trace!("0xCB {:#04X}: BIT 2,E. E:{:#04X}", opcode, self.read_register_e());
+
+                self.test_bit(self.read_register_e(), 2);
+            },
+            0x54 => {
+                trace!("0xCB {:#04X}: BIT 2,H. H:{:#04X}", opcode, self.read_register_h());
+
+                self.test_bit(self.read_register_h(), 2);
+            },
+            0x55 => {
+                trace!("0xCB {:#04X}: BIT 2,L. L:{:#04X}", opcode, self.read_register_l());
+
+                self.test_bit(self.read_register_l(), 2);
+            },
+            0x56 => {
+                trace!("0xCB {:#04X}: BIT 2,(HL). (HL):{:#04X}", opcode, mmu.read_byte(self.read_register_hl()));
+
+                self.test_bit(smmu.read_byte(self.read_register_hl()), 2);
+            },
+            0x57 => {
+                trace!("0xCB {:#04X}: BIT 2,A. A:{:#04X}", opcode, self.read_register_a());
+
+                self.test_bit(self.read_register_a(), 2);
+            },
+            0x58 => {
+                trace!("0xCB {:#04X}: BIT 3,B. B:{:#04X}", opcode, self.read_register_b());
+
+                self.test_bit(self.read_register_b(), 3);
+            },
+            0x59 => {
+                trace!("0xCB {:#04X}: BIT 3,C. C:{:#04X}", opcode, self.read_register_c());
+
+                self.test_bit(self.read_register_c(), 3);
+            },
+            0x5A => {
+                trace!("0xCB {:#04X}: BIT 3,D. D:{:#04X}", opcode, self.read_register_d());
+
+                self.test_bit(self.read_register_d(), 3);
+            },
+            0x5B => {
+                trace!("0xCB {:#04X}: BIT 3,E. E:{:#04X}", opcode, self.read_register_e());
+
+                self.test_bit(self.read_register_e(), 3);
+            },
+            0x5C => {
+                trace!("0xCB {:#04X}: BIT 3,H. H:{:#04X}", opcode, self.read_register_h());
+
+                self.test_bit(self.read_register_h(), 3);
+            },
+            0x5D => {
+                trace!("0xCB {:#04X}: BIT 3,L. L:{:#04X}", opcode, self.read_register_l());
+
+                self.test_bit(self.read_register_l(), 3);
+            },
+            0x5E => {
+                trace!("0xCB {:#04X}: BIT 3,(HL). (HL):{:#04X}", opcode, mmu.read_byte(self.read_register_hl()));
+
+                self.test_bit(mmu.read_byte(self.read_register_hl()), 3);
+            },
+            0x5F => {
+                trace!("0xCB {:#04X}: BIT 3,A. A:{:#04X}", opcode, self.read_register_a());
+
+                self.test_bit(self.read_register_a(), 3);
+            },
+            0x60 => {
+                trace!("0xCB {:#04X}: BIT 4,B. B:{:#04X}", opcode, self.read_register_b());
+
+                self.test_bit(self.read_register_b(), 4);
+            },
+            0x61 => {
+                trace!("0xCB {:#04X}: BIT 4,C. C:{:#04X}", opcode, self.read_register_c());
+
+                self.test_bit(self.read_register_c(), 4);
+            },
+            0x62 => {
+                trace!("0xCB {:#04X}: BIT 4,D. D:{:#04X}", opcode, self.read_register_d());
+
+                self.test_bit(self.read_register_d(), 4);
+            },
+            0x63 => {
+                trace!("0xCB {:#04X}: BIT 4,E. E:{:#04X}", opcode, self.read_register_e());
+
+                self.test_bit(self.read_register_e(), 4);
+            },
+            0x64 => {
+                trace!("0xCB {:#04X}: BIT 4,H. H:{:#04X}", opcode, self.read_register_h());
+
+                self.test_bit(self.read_register_h(), 4);
+            },
+            0x65 => {
+                trace!("0xCB {:#04X}: BIT 4,L. L:{:#04X}", opcode, self.read_register_l());
+
+                self.test_bit(self.read_register_l(), 4);
+            },
+            0x66 => {
+                trace!("0xCB {:#04X}: BIT 4,(HL). (HL):{:#04X}", opcode, mmu.read_byte(self.read_register_hl()));
+
+                self.test_bit(smmu.read_byte(self.read_register_hl()), 4);
+            },
+            0x67 => {
+                trace!("0xCB {:#04X}: BIT 4,A. A:{:#04X}", opcode, self.read_register_a());
+
+                self.test_bit(self.read_register_a(), 4);
+            },
+            0x68 => {
+                trace!("0xCB {:#04X}: BIT 3,B. B:{:#04X}", opcode, self.read_register_b());
+
+                self.test_bit(self.read_register_b(), 5);
+            },
+            0x69 => {
+                trace!("0xCB {:#04X}: BIT 5,C. C:{:#04X}", opcode, self.read_register_c());
+
+                self.test_bit(self.read_register_c(), 5);
+            },
+            0x6A => {
+                trace!("0xCB {:#04X}: BIT 5,D. D:{:#04X}", opcode, self.read_register_d());
+
+                self.test_bit(self.read_register_d(), 5);
+            },
+            0x6B => {
+                trace!("0xCB {:#04X}: BIT 5,E. E:{:#04X}", opcode, self.read_register_e());
+
+                self.test_bit(self.read_register_e(), 5);
+            },
+            0x6C => {
+                trace!("0xCB {:#04X}: BIT 5,H. H:{:#04X}", opcode, self.read_register_h());
+
+                self.test_bit(self.read_register_h(), 5);
+            },
+            0x6D => {
+                trace!("0xCB {:#04X}: BIT 5,L. L:{:#04X}", opcode, self.read_register_l());
+
+                self.test_bit(self.read_register_l(), 5);
+            },
+            0x6E => {
+                trace!("0xCB {:#04X}: BIT 5,(HL). (HL):{:#04X}", opcode, mmu.read_byte(self.read_register_hl()));
+
+                self.test_bit(mmu.read_byte(self.read_register_hl()), 5);
+            },
+            0x6F => {
+                trace!("0xCB {:#04X}: BIT 5,A. A:{:#04X}", opcode, self.read_register_a());
+
+                self.test_bit(self.read_register_a(), 5);
+            },
+            0x70 => {
+                trace!("0xCB {:#04X}: BIT 6,B. B:{:#04X}", opcode, self.read_register_b());
+
+                self.test_bit(self.read_register_b(), 6);
+            },
+            0x71 => {
+                trace!("0xCB {:#04X}: BIT 6,C. C:{:#04X}", opcode, self.read_register_c());
+
+                self.test_bit(self.read_register_c(), 6);
+            },
+            0x72 => {
+                trace!("0xCB {:#04X}: BIT 6,D. D:{:#04X}", opcode, self.read_register_d());
+
+                self.test_bit(self.read_register_d(), 6);
+            },
+            0x73 => {
+                trace!("0xCB {:#04X}: BIT 6,E. E:{:#04X}", opcode, self.read_register_e());
+
+                self.test_bit(self.read_register_e(), 6);
+            },
+            0x74 => {
+                trace!("0xCB {:#04X}: BIT 6,H. H:{:#04X}", opcode, self.read_register_h());
+
+                self.test_bit(self.read_register_h(), 6);
+            },
+            0x75 => {
+                trace!("0xCB {:#04X}: BIT 6,L. L:{:#04X}", opcode, self.read_register_l());
+
+                self.test_bit(self.read_register_l(), 6);
+            },
+            0x76 => {
+                trace!("0xCB {:#04X}: BIT 6,(HL). (HL):{:#04X}", opcode, mmu.read_byte(self.read_register_hl()));
+
+                self.test_bit(smmu.read_byte(self.read_register_hl()), 6);
+            },
+            0x77 => {
+                trace!("0xCB {:#04X}: BIT 6,A. A:{:#04X}", opcode, self.read_register_a());
+
+                self.test_bit(self.read_register_a(), 6);
+            },
+            0x78 => {
+                trace!("0xCB {:#04X}: BIT 7,B. B:{:#04X}", opcode, self.read_register_b());
+
+                self.test_bit(self.read_register_b(), 7);
+            },
+            0x79 => {
+                trace!("0xCB {:#04X}: BIT 7,C. C:{:#04X}", opcode, self.read_register_c());
+
+                self.test_bit(self.read_register_c(), 7);
+            },
+            0x7A => {
+                trace!("0xCB {:#04X}: BIT 7,D. D:{:#04X}", opcode, self.read_register_d());
+
+                self.test_bit(self.read_register_d(), 7);
+            },
+            0x7B => {
+                trace!("0xCB {:#04X}: BIT 7,E. E:{:#04X}", opcode, self.read_register_e());
+
+                self.test_bit(self.read_register_e(), 7);
             },
             0x7C => {
                 trace!("0xCB {:#04X}: BIT 7,H. H:{:#04X}", opcode, self.read_register_h());
 
-                // Test bit
-                if self.most_significant_bit(self.read_register_h()) == 0 {
-                    self.set_flag_bit(ZERO_BIT)
-                } else {
-                    self.unset_flag_bit(ZERO_BIT);
-                }
+                self.test_bit(self.read_register_h(), 7);
+            },
+            0x7D => {
+                trace!("0xCB {:#04X}: BIT 7,L. L:{:#04X}", opcode, self.read_register_l());
 
-                // Set flags
-                self.set_flag_bit(HALF_CARRY_BIT);
-                self.unset_flag_bit(SUBTRACTION_BIT);
+                self.test_bit(self.read_register_l(), 7);
+            },
+            0x7E => {
+                trace!("0xCB {:#04X}: BIT 7,(HL). (HL):{:#04X}", opcode, mmu.read_byte(self.read_register_hl()));
+
+                self.test_bit(mmu.read_byte(self.read_register_hl()), 7);
+            },
+            0x7F => {
+                trace!("0xCB {:#04X}: BIT 7,A. A:{:#04X}", opcode, self.read_register_a());
+
+                self.test_bit(self.read_register_a(), 7);
+            },
+            0x80 => {
+                trace!("0xCB {:#04X}: RES 0,B. B:{:#04X}", opcode, self.read_register_b());
+
+                let result = self.reset_bit(self.read_register_b(), 0);
+                self.write_register_b(result);
+            },
+            0x81 => {
+                trace!("0xCB {:#04X}: RES 0,C. C:{:#04X}", opcode, self.read_register_c());
+
+                let result = self.reset_bit(self.read_register_c(), 0);
+                self.write_register_c(result);
+            },
+            0x82 => {
+                trace!("0xCB {:#04X}: RES 0,D. D:{:#04X}", opcode, self.read_register_d());
+
+                let result = self.reset_bit(self.read_register_d(), 0);
+                self.write_register_d(result);
+            },
+            0x83 => {
+                trace!("0xCB {:#04X}: RES 0,E. E:{:#04X}", opcode, self.read_register_e());
+
+                let result = self.reset_bit(self.read_register_e(), 0);
+                self.write_register_e(result);
+            },
+            0x84 => {
+                trace!("0xCB {:#04X}: RES 0,H. H:{:#04X}", opcode, self.read_register_h());
+
+                let result = self.reset_bit(self.read_register_h(), 0);
+                self.write_register_h(result);
+            },
+            0x85 => {
+                trace!("0xCB {:#04X}: RES 0,L. L:{:#04X}", opcode, self.read_register_l());
+
+                let result = self.reset_bit(self.read_register_l(), 0);
+                self.write_register_l(result);
+            },
+            0x86 => {
+                trace!("0xCB {:#04X}: RES 0,(HL). (HL):{:#04X}", opcode, mmu.read_byte(self.read_register_hl()));
+
+                let result = self.reset_bit(mmu.read_byte(self.read_register_hl()), 0);
+                mmu.write_byte(self.read_register_hl(), result);
+            },
+            0x87 => {
+                trace!("0xCB {:#04X}: RES 0,A. A:{:#04X}", opcode, self.read_register_a());
+
+                let result = self.reset_bit(self.read_register_a(), 0);
+                self.write_register_a(result);
+            },
+            0x88 => {
+                trace!("0xCB {:#04X}: RES 1,B. B:{:#04X}", opcode, self.read_register_b());
+
+                let result = self.reset_bit(self.read_register_b(), 1);
+                self.write_register_b(result);
+            },
+            0x89 => {
+                trace!("0xCB {:#04X}: RES 1,C. C:{:#04X}", opcode, self.read_register_c());
+
+                let result = self.reset_bit(self.read_register_c(), 1);
+                self.write_register_c(result);
+            },
+            0x8A => {
+                trace!("0xCB {:#04X}: RES 1,D. D:{:#04X}", opcode, self.read_register_d());
+
+                let result = self.reset_bit(self.read_register_d(), 1);
+                self.write_register_d(result);
+            },
+            0x8B => {
+                trace!("0xCB {:#04X}: RES 1,E. E:{:#04X}", opcode, self.read_register_e());
+
+                let result = self.reset_bit(self.read_register_e(), 1);
+                self.write_register_e(result);
+            },
+            0x8C => {
+                trace!("0xCB {:#04X}: RES 1,H. H:{:#04X}", opcode, self.read_register_h());
+
+                let result = self.reset_bit(self.read_register_h(), 1);
+                self.write_register_h(result);
+            },
+            0x8D => {
+                trace!("0xCB {:#04X}: RES 1,L. L:{:#04X}", opcode, self.read_register_l());
+
+                let result = self.reset_bit(self.read_register_l(), 1);
+                self.write_register_l(result);
+            },
+            0x8E => {
+                trace!("0xCB {:#04X}: RES 1,(HL). (HL):{:#04X}", opcode, mmu.read_byte(self.read_register_hl()));
+
+                let result = self.reset_bit(mmu.read_byte(self.read_register_hl()), 1);
+                mmu.write_byte(self.read_register_hl(), result);
+            },
+            0x8F => {
+                trace!("0xCB {:#04X}: RES 1,A. A:{:#04X}", opcode, self.read_register_a());
+
+                let result = self.reset_bit(self.read_register_a(), 1);
+                self.write_register_a(result);
+            },
+            0x90 => {
+                trace!("0xCB {:#04X}: RES 2,B. B:{:#04X}", opcode, self.read_register_b());
+
+                let result = self.reset_bit(self.read_register_b(), 2);
+                self.write_register_b(result);
+            },
+            0x91 => {
+                trace!("0xCB {:#04X}: RES 2,C. C:{:#04X}", opcode, self.read_register_c());
+
+                let result = self.reset_bit(self.read_register_c(), 2);
+                self.write_register_c(result);
+            },
+            0x92 => {
+                trace!("0xCB {:#04X}: RES 2,D. D:{:#04X}", opcode, self.read_register_d());
+
+                let result = self.reset_bit(self.read_register_d(), 2);
+                self.write_register_d(result);
+            },
+            0x93 => {
+                trace!("0xCB {:#04X}: RES 2,E. E:{:#04X}", opcode, self.read_register_e());
+
+                let result = self.reset_bit(self.read_register_e(), 2);
+                self.write_register_e(result);
+            },
+            0x94 => {
+                trace!("0xCB {:#04X}: RES 2,H. H:{:#04X}", opcode, self.read_register_h());
+
+                let result = self.reset_bit(self.read_register_h(), 2);
+                self.write_register_h(result);
+            },
+            0x95 => {
+                trace!("0xCB {:#04X}: RES 2,L. L:{:#04X}", opcode, self.read_register_l());
+
+                let result = self.reset_bit(self.read_register_l(), 2);
+                self.write_register_l(result);
+            },
+            0x96 => {
+                trace!("0xCB {:#04X}: RES 2,(HL). (HL):{:#04X}", opcode, mmu.read_byte(self.read_register_hl()));
+
+                let result = self.reset_bit(mmu.read_byte(self.read_register_hl()), 2);
+                mmu.write_byte(self.read_register_hl(), result);
+            },
+            0x97 => {
+                trace!("0xCB {:#04X}: RES 2,A. A:{:#04X}", opcode, self.read_register_a());
+
+                let result = self.reset_bit(self.read_register_a(), 2);
+                self.write_register_a(result);
+            },
+            0x98 => {
+                trace!("0xCB {:#04X}: RES 3,B. B:{:#04X}", opcode, self.read_register_b());
+
+                let result = self.reset_bit(self.read_register_b(), 3);
+                self.write_register_b(result);
+            },
+            0x99 => {
+                trace!("0xCB {:#04X}: RES 3,C. C:{:#04X}", opcode, self.read_register_c());
+
+                let result = self.reset_bit(self.read_register_c(), 3);
+                self.write_register_c(result);
+            },
+            0x9A => {
+                trace!("0xCB {:#04X}: RES 3,D. D:{:#04X}", opcode, self.read_register_d());
+
+                let result = self.reset_bit(self.read_register_d(), 3);
+                self.write_register_d(result);
+            },
+            0x9B => {
+                trace!("0xCB {:#04X}: RES 3,E. E:{:#04X}", opcode, self.read_register_e());
+
+                let result = self.reset_bit(self.read_register_e(), 3);
+                self.write_register_e(result);
+            },
+            0x9C => {
+                trace!("0xCB {:#04X}: RES 3,H. H:{:#04X}", opcode, self.read_register_h());
+
+                let result = self.reset_bit(self.read_register_h(), 3);
+                self.write_register_h(result);
+            },
+            0x9D => {
+                trace!("0xCB {:#04X}: RES 3,L. L:{:#04X}", opcode, self.read_register_l());
+
+                let result = self.reset_bit(self.read_register_l(), 3);
+                self.write_register_l(result);
+            },
+            0x9E => {
+                trace!("0xCB {:#04X}: RES 3,(HL). (HL):{:#04X}", opcode, mmu.read_byte(self.read_register_hl()));
+
+                let result = self.reset_bit(mmu.read_byte(self.read_register_hl()), 3);
+                mmu.write_byte(self.read_register_hl(), result);
+            },
+            0x9F => {
+                trace!("0xCB {:#04X}: RES 3,A. A:{:#04X}", opcode, self.read_register_a());
+
+                let result = self.reset_bit(self.read_register_a(), 3);
+                self.write_register_a(result);
+            },
+            0xA0 => {
+                trace!("0xCB {:#04X}: RES 4,B. B:{:#04X}", opcode, self.read_register_b());
+
+                let result = self.reset_bit(self.read_register_b(), 4);
+                self.write_register_b(result);
+            },
+            0xA1 => {
+                trace!("0xCB {:#04X}: RES 4,C. C:{:#04X}", opcode, self.read_register_c());
+
+                let result = self.reset_bit(self.read_register_c(), 4);
+                self.write_register_c(result);
+            },
+            0xA2 => {
+                trace!("0xCB {:#04X}: RES 4,D. D:{:#04X}", opcode, self.read_register_d());
+
+                let result = self.reset_bit(self.read_register_d(), 4);
+                self.write_register_d(result);
+            },
+            0xA3 => {
+                trace!("0xCB {:#04X}: RES 4,E. E:{:#04X}", opcode, self.read_register_e());
+
+                let result = self.reset_bit(self.read_register_e(), 4);
+                self.write_register_e(result);
+            },
+            0xA4 => {
+                trace!("0xCB {:#04X}: RES 4,H. H:{:#04X}", opcode, self.read_register_h());
+
+                let result = self.reset_bit(self.read_register_h(), 4);
+                self.write_register_h(result);
+            },
+            0xA5 => {
+                trace!("0xCB {:#04X}: RES 4,L. L:{:#04X}", opcode, self.read_register_l());
+
+                let result = self.reset_bit(self.read_register_l(), 4);
+                self.write_register_l(result);
+            },
+            0xA6 => {
+                trace!("0xCB {:#04X}: RES 4,(HL). (HL):{:#04X}", opcode, mmu.read_byte(self.read_register_hl()));
+
+                let result = self.reset_bit(mmu.read_byte(self.read_register_hl()), 4);
+                mmu.write_byte(self.read_register_hl(), result);
+            },
+            0xA7 => {
+                trace!("0xCB {:#04X}: RES 4,A. A:{:#04X}", opcode, self.read_register_a());
+
+                let result = self.reset_bit(self.read_register_a(), 4);
+                self.write_register_a(result);
+            },
+            0xA8 => {
+                trace!("0xCB {:#04X}: RES 5,B. B:{:#04X}", opcode, self.read_register_b());
+
+                let result = self.reset_bit(self.read_register_b(), 5);
+                self.write_register_b(result);
+            },
+            0xA9 => {
+                trace!("0xCB {:#04X}: RES 5,C. C:{:#04X}", opcode, self.read_register_c());
+
+                let result = self.reset_bit(self.read_register_c(), 5);
+                self.write_register_c(result);
+            },
+            0xAA => {
+                trace!("0xCB {:#04X}: RES 5,D. D:{:#04X}", opcode, self.read_register_d());
+
+                let result = self.reset_bit(self.read_register_d(), 5);
+                self.write_register_d(result);
+            },
+            0xAB => {
+                trace!("0xCB {:#04X}: RES 5,E. E:{:#04X}", opcode, self.read_register_e());
+
+                let result = self.reset_bit(self.read_register_e(), 5);
+                self.write_register_e(result);
+            },
+            0xAC => {
+                trace!("0xCB {:#04X}: RES 5,H. H:{:#04X}", opcode, self.read_register_h());
+
+                let result = self.reset_bit(self.read_register_h(), 5);
+                self.write_register_h(result);
+            },
+            0xAD => {
+                trace!("0xCB {:#04X}: RES 5,L. L:{:#04X}", opcode, self.read_register_l());
+
+                let result = self.reset_bit(self.read_register_l(), 5);
+                self.write_register_l(result);
+            },
+            0xAE => {
+                trace!("0xCB {:#04X}: RES 5,(HL). (HL):{:#04X}", opcode, mmu.read_byte(self.read_register_hl()));
+
+                let result = self.reset_bit(mmu.read_byte(self.read_register_hl()), 5);
+                mmu.write_byte(self.read_register_hl(), result);
+            },
+            0xAF => {
+                trace!("0xCB {:#04X}: RES 5,A. A:{:#04X}", opcode, self.read_register_a());
+
+                let result = self.reset_bit(self.read_register_a(), 5);
+                self.write_register_a(result);
+            },
+            0xB0 => {
+                trace!("0xCB {:#04X}: RES 6,B. B:{:#04X}", opcode, self.read_register_b());
+
+                let result = self.reset_bit(self.read_register_b(), 6);
+                self.write_register_b(result);
+            },
+            0xB1 => {
+                trace!("0xCB {:#04X}: RES 6,C. C:{:#04X}", opcode, self.read_register_c());
+
+                let result = self.reset_bit(self.read_register_c(), 6);
+                self.write_register_c(result);
+            },
+            0xB2 => {
+                trace!("0xCB {:#04X}: RES 6,D. D:{:#04X}", opcode, self.read_register_d());
+
+                let result = self.reset_bit(self.read_register_d(), 6);
+                self.write_register_d(result);
+            },
+            0xB3 => {
+                trace!("0xCB {:#04X}: RES 6,E. E:{:#04X}", opcode, self.read_register_e());
+
+                let result = self.reset_bit(self.read_register_e(), 6);
+                self.write_register_e(result);
+            },
+            0xB4 => {
+                trace!("0xCB {:#04X}: RES 6,H. H:{:#04X}", opcode, self.read_register_h());
+
+                let result = self.reset_bit(self.read_register_h(), 6);
+                self.write_register_h(result);
+            },
+            0xB5 => {
+                trace!("0xCB {:#04X}: RES 6,L. L:{:#04X}", opcode, self.read_register_l());
+
+                let result = self.reset_bit(self.read_register_l(), 6);
+                self.write_register_l(result);
+            },
+            0xB6 => {
+                trace!("0xCB {:#04X}: RES 6,(HL). (HL):{:#04X}", opcode, mmu.read_byte(self.read_register_hl()));
+
+                let result = self.reset_bit(mmu.read_byte(self.read_register_hl()), 6);
+                mmu.write_byte(self.read_register_hl(), result);
+            },
+            0xB7 => {
+                trace!("0xCB {:#04X}: RES 6,A. A:{:#04X}", opcode, self.read_register_a());
+
+                let result = self.reset_bit(self.read_register_a(), 6);
+                self.write_register_a(result);
+            },
+            0xB8 => {
+                trace!("0xCB {:#04X}: RES 7,B. B:{:#04X}", opcode, self.read_register_b());
+
+                let result = self.reset_bit(self.read_register_b(), 7);
+                self.write_register_b(result);
+            },
+            0xB9 => {
+                trace!("0xCB {:#04X}: RES 7,C. C:{:#04X}", opcode, self.read_register_c());
+
+                let result = self.reset_bit(self.read_register_c(), 7);
+                self.write_register_c(result);
+            },
+            0xBA => {
+                trace!("0xCB {:#04X}: RES 7,D. D:{:#04X}", opcode, self.read_register_d());
+
+                let result = self.reset_bit(self.read_register_d(), 7);
+                self.write_register_d(result);
+            },
+            0xBB => {
+                trace!("0xCB {:#04X}: RES 7,E. E:{:#04X}", opcode, self.read_register_e());
+
+                let result = self.reset_bit(self.read_register_e(), 7);
+                self.write_register_e(result);
+            },
+            0xBC => {
+                trace!("0xCB {:#04X}: RES 7,H. H:{:#04X}", opcode, self.read_register_h());
+
+                let result = self.reset_bit(self.read_register_h(), 7);
+                self.write_register_h(result);
+            },
+            0xBD => {
+                trace!("0xCB {:#04X}: RES 7,L. L:{:#04X}", opcode, self.read_register_l());
+
+                let result = self.reset_bit(self.read_register_l(), 7);
+                self.write_register_l(result);
+            },
+            0xBE => {
+                trace!("0xCB {:#04X}: RES 7,(HL). (HL):{:#04X}", opcode, mmu.read_byte(self.read_register_hl()));
+
+                let result = self.reset_bit(mmu.read_byte(self.read_register_hl()), 7);
+                mmu.write_byte(self.read_register_hl(), result);
+            },
+            0xBF => {
+                trace!("0xCB {:#04X}: RES 7,A. A:{:#04X}", opcode, self.read_register_a());
+
+                let result = self.reset_bit(self.read_register_a(), 7);
+                self.write_register_a(result);
+            },
+            0xC0 => {
+                trace!("0xCB {:#04X}: SET 0,B. B:{:#04X}", opcode, self.read_register_b());
+
+                let result = self.set_bit(self.read_register_b(), 0);
+                self.write_register_b(result);
+            },
+            0xC1 => {
+                trace!("0xCB {:#04X}: SET 0,C. C:{:#04X}", opcode, self.read_register_c());
+
+                let result = self.set_bit(self.read_register_c(), 0);
+                self.write_register_c(result);
+            },
+            0xC2 => {
+                trace!("0xCB {:#04X}: SET 0,D. D:{:#04X}", opcode, self.read_register_d());
+
+                let result = self.set_bit(self.read_register_d(), 0);
+                self.write_register_d(result);
+            },
+            0xC3 => {
+                trace!("0xCB {:#04X}: SET 0,E. E:{:#04X}", opcode, self.read_register_e());
+
+                let result = self.set_bit(self.read_register_e(), 0);
+                self.write_register_e(result);
+            },
+            0xC4 => {
+                trace!("0xCB {:#04X}: SET 0,H. H:{:#04X}", opcode, self.read_register_h());
+
+                let result = self.set_bit(self.read_register_h(), 0);
+                self.write_register_h(result);
+            },
+            0xC5 => {
+                trace!("0xCB {:#04X}: SET 0,L. L:{:#04X}", opcode, self.read_register_l());
+
+                let result = self.set_bit(self.read_register_l(), 0);
+                self.write_register_l(result);
+            },
+            0xC6 => {
+                trace!("0xCB {:#04X}: SET 0,(HL). (HL):{:#04X}", opcode, mmu.read_byte(self.read_register_hl()));
+
+                let result = self.set_bit(mmu.read_byte(self.read_register_hl()), 0);
+                mmu.write_byte(self.read_register_hl(), result);
+            },
+            0xC7 => {
+                trace!("0xCB {:#04X}: SET 0,A. A:{:#04X}", opcode, self.read_register_a());
+
+                let result = self.set_bit(self.read_register_a(), 0);
+                self.write_register_a(result);
+            },
+            0xC8 => {
+                trace!("0xCB {:#04X}: SET 1,B. B:{:#04X}", opcode, self.read_register_b());
+
+                let result = self.set_bit(self.read_register_b(), 1);
+                self.write_register_b(result);
+            },
+            0xC9 => {
+                trace!("0xCB {:#04X}: SET 1,C. C:{:#04X}", opcode, self.read_register_c());
+
+                let result = self.set_bit(self.read_register_c(), 1);
+                self.write_register_c(result);
+            },
+            0xCA => {
+                trace!("0xCB {:#04X}: SET 1,D. D:{:#04X}", opcode, self.read_register_d());
+
+                let result = self.set_bit(self.read_register_d(), 1);
+                self.write_register_d(result);
+            },
+            0xCB => {
+                trace!("0xCB {:#04X}: SET 1,E. E:{:#04X}", opcode, self.read_register_e());
+
+                let result = self.set_bit(self.read_register_e(), 1);
+                self.write_register_e(result);
+            },
+            0xCC => {
+                trace!("0xCB {:#04X}: SET 1,H. H:{:#04X}", opcode, self.read_register_h());
+
+                let result = self.set_bit(self.read_register_h(), 1);
+                self.write_register_h(result);
+            },
+            0xCD => {
+                trace!("0xCB {:#04X}: SET 1,L. L:{:#04X}", opcode, self.read_register_l());
+
+                let result = self.set_bit(self.read_register_l(), 1);
+                self.write_register_l(result);
+            },
+            0xCE => {
+                trace!("0xCB {:#04X}: SET 1,(HL). (HL):{:#04X}", opcode, mmu.read_byte(self.read_register_hl()));
+
+                let result = self.set_bit(mmu.read_byte(self.read_register_hl()), 1);
+                mmu.write_byte(self.read_register_hl(), result);
+            },
+            0xCF => {
+                trace!("0xCB {:#04X}: SET 1,A. A:{:#04X}", opcode, self.read_register_a());
+
+                let result = self.set_bit(self.read_register_a(), 1);
+                self.write_register_a(result);
+            },
+            0xD0 => {
+                trace!("0xCB {:#04X}: SET 2,B. B:{:#04X}", opcode, self.read_register_b());
+
+                let result = self.set_bit(self.read_register_b(), 2);
+                self.write_register_b(result);
+            },
+            0xD1 => {
+                trace!("0xCB {:#04X}: SET 2,C. C:{:#04X}", opcode, self.read_register_c());
+
+                let result = self.set_bit(self.read_register_c(), 2);
+                self.write_register_c(result);
+            },
+            0xD2 => {
+                trace!("0xCB {:#04X}: SET 2,D. D:{:#04X}", opcode, self.read_register_d());
+
+                let result = self.set_bit(self.read_register_d(), 2);
+                self.write_register_d(result);
+            },
+            0xD3 => {
+                trace!("0xCB {:#04X}: SET 2,E. E:{:#04X}", opcode, self.read_register_e());
+
+                let result = self.set_bit(self.read_register_e(), 2);
+                self.write_register_e(result);
+            },
+            0xD4 => {
+                trace!("0xCB {:#04X}: SET 2,H. H:{:#04X}", opcode, self.read_register_h());
+
+                let result = self.set_bit(self.read_register_h(), 2);
+                self.write_register_h(result);
+            },
+            0xD5 => {
+                trace!("0xCB {:#04X}: SET 2,L. L:{:#04X}", opcode, self.read_register_l());
+
+                let result = self.set_bit(self.read_register_l(), 2);
+                self.write_register_l(result);
+            },
+            0xD6 => {
+                trace!("0xCB {:#04X}: SET 2,(HL). (HL):{:#04X}", opcode, mmu.read_byte(self.read_register_hl()));
+
+                let result = self.set_bit(mmu.read_byte(self.read_register_hl()), 2);
+                mmu.write_byte(self.read_register_hl(), result);
+            },
+            0xD7 => {
+                trace!("0xCB {:#04X}: SET 2,A. A:{:#04X}", opcode, self.read_register_a());
+
+                let result = self.set_bit(self.read_register_a(), 2);
+                self.write_register_a(result);
+            },
+            0xD8 => {
+                trace!("0xCB {:#04X}: SET 3,B. B:{:#04X}", opcode, self.read_register_b());
+
+                let result = self.set_bit(self.read_register_b(), 3);
+                self.write_register_b(result);
+            },
+            0xD9 => {
+                trace!("0xCB {:#04X}: SET 3,C. C:{:#04X}", opcode, self.read_register_c());
+
+                let result = self.set_bit(self.read_register_c(), 3);
+                self.write_register_c(result);
+            },
+            0xDA => {
+                trace!("0xCB {:#04X}: SET 3,D. D:{:#04X}", opcode, self.read_register_d());
+
+                let result = self.set_bit(self.read_register_d(), 3);
+                self.write_register_d(result);
+            },
+            0xDB => {
+                trace!("0xCB {:#04X}: SET 3,E. E:{:#04X}", opcode, self.read_register_e());
+
+                let result = self.set_bit(self.read_register_e(), 3);
+                self.write_register_e(result);
+            },
+            0xDC => {
+                trace!("0xCB {:#04X}: SET 3,H. H:{:#04X}", opcode, self.read_register_h());
+
+                let result = self.set_bit(self.read_register_h(), 3);
+                self.write_register_h(result);
+            },
+            0xDD => {
+                trace!("0xCB {:#04X}: SET 3,L. L:{:#04X}", opcode, self.read_register_l());
+
+                let result = self.set_bit(self.read_register_l(), 3);
+                self.write_register_l(result);
+            },
+            0xDE => {
+                trace!("0xCB {:#04X}: SET 3,(HL). (HL):{:#04X}", opcode, mmu.read_byte(self.read_register_hl()));
+
+                let result = self.set_bit(mmu.read_byte(self.read_register_hl()), 3);
+                mmu.write_byte(self.read_register_hl(), result);
+            },
+            0xDF => {
+                trace!("0xCB {:#04X}: SET 3,A. A:{:#04X}", opcode, self.read_register_a());
+
+                let result = self.set_bit(self.read_register_a(), 3);
+                self.write_register_a(result);
+            },
+            0xE0 => {
+                trace!("0xCB {:#04X}: SET 4,B. B:{:#04X}", opcode, self.read_register_b());
+
+                let result = self.set_bit(self.read_register_b(), 4);
+                self.write_register_b(result);
+            },
+            0xE1 => {
+                trace!("0xCB {:#04X}: SET 4,C. C:{:#04X}", opcode, self.read_register_c());
+
+                let result = self.set_bit(self.read_register_c(), 4);
+                self.write_register_c(result);
+            },
+            0xE2 => {
+                trace!("0xCB {:#04X}: SET 4,D. D:{:#04X}", opcode, self.read_register_d());
+
+                let result = self.set_bit(self.read_register_d(), 4);
+                self.write_register_d(result);
+            },
+            0xE3 => {
+                trace!("0xCB {:#04X}: SET 4,E. E:{:#04X}", opcode, self.read_register_e());
+
+                let result = self.set_bit(self.read_register_e(), 4);
+                self.write_register_e(result);
+            },
+            0xE4 => {
+                trace!("0xCB {:#04X}: SET 4,H. H:{:#04X}", opcode, self.read_register_h());
+
+                let result = self.set_bit(self.read_register_h(), 4);
+                self.write_register_h(result);
+            },
+            0xE5 => {
+                trace!("0xCB {:#04X}: SET 4,L. L:{:#04X}", opcode, self.read_register_l());
+
+                let result = self.set_bit(self.read_register_l(), 4);
+                self.write_register_l(result);
+            },
+            0xE6 => {
+                trace!("0xCB {:#04X}: SET 4,(HL). (HL):{:#04X}", opcode, mmu.read_byte(self.read_register_hl()));
+
+                let result = self.set_bit(mmu.read_byte(self.read_register_hl()), 4);
+                mmu.write_byte(self.read_register_hl(), result);
+            },
+            0xE7 => {
+                trace!("0xCB {:#04X}: SET 4,A. A:{:#04X}", opcode, self.read_register_a());
+
+                let result = self.set_bit(self.read_register_a(), 4);
+                self.write_register_a(result);
+            },
+            0xE8 => {
+                trace!("0xCB {:#04X}: SET 5,B. B:{:#04X}", opcode, self.read_register_b());
+
+                let result = self.set_bit(self.read_register_b(), 5);
+                self.write_register_b(result);
+            },
+            0xE9 => {
+                trace!("0xCB {:#04X}: SET 5,C. C:{:#04X}", opcode, self.read_register_c());
+
+                let result = self.set_bit(self.read_register_c(), 5);
+                self.write_register_c(result);
+            },
+            0xEA => {
+                trace!("0xCB {:#04X}: SET 5,D. D:{:#04X}", opcode, self.read_register_d());
+
+                let result = self.set_bit(self.read_register_d(), 5);
+                self.write_register_d(result);
+            },
+            0xEB => {
+                trace!("0xCB {:#04X}: SET 5,E. E:{:#04X}", opcode, self.read_register_e());
+
+                let result = self.set_bit(self.read_register_e(), 5);
+                self.write_register_e(result);
+            },
+            0xEC => {
+                trace!("0xCB {:#04X}: SET 5,H. H:{:#04X}", opcode, self.read_register_h());
+
+                let result = self.set_bit(self.read_register_h(), 5);
+                self.write_register_h(result);
+            },
+            0xED => {
+                trace!("0xCB {:#04X}: SET 5,L. L:{:#04X}", opcode, self.read_register_l());
+
+                let result = self.set_bit(self.read_register_l(), 5);
+                self.write_register_l(result);
+            },
+            0xEE => {
+                trace!("0xCB {:#04X}: SET 5,(HL). (HL):{:#04X}", opcode, mmu.read_byte(self.read_register_hl()));
+
+                let result = self.set_bit(mmu.read_byte(self.read_register_hl()), 5);
+                mmu.write_byte(self.read_register_hl(), result);
+            },
+            0xEF => {
+                trace!("0xCB {:#04X}: SET 5,A. A:{:#04X}", opcode, self.read_register_a());
+
+                let result = self.set_bit(self.read_register_a(), 5);
+                self.write_register_a(result);
+            },
+            0xF0 => {
+                trace!("0xCB {:#04X}: SET 6,B. B:{:#04X}", opcode, self.read_register_b());
+
+                let result = self.set_bit(self.read_register_b(), 6);
+                self.write_register_b(result);
+            },
+            0xF1 => {
+                trace!("0xCB {:#04X}: SET 6,C. C:{:#04X}", opcode, self.read_register_c());
+
+                let result = self.set_bit(self.read_register_c(), 6);
+                self.write_register_c(result);
+            },
+            0xF2 => {
+                trace!("0xCB {:#04X}: SET 6,D. D:{:#04X}", opcode, self.read_register_d());
+
+                let result = self.set_bit(self.read_register_d(), 6);
+                self.write_register_d(result);
+            },
+            0xF3 => {
+                trace!("0xCB {:#04X}: SET 6,E. E:{:#04X}", opcode, self.read_register_e());
+
+                let result = self.set_bit(self.read_register_e(), 6);
+                self.write_register_e(result);
+            },
+            0xF4 => {
+                trace!("0xCB {:#04X}: SET 6,H. H:{:#04X}", opcode, self.read_register_h());
+
+                let result = self.set_bit(self.read_register_h(), 6);
+                self.write_register_h(result);
+            },
+            0xF5 => {
+                trace!("0xCB {:#04X}: SET 6,L. L:{:#04X}", opcode, self.read_register_l());
+
+                let result = self.set_bit(self.read_register_l(), 6);
+                self.write_register_l(result);
+            },
+            0xF6 => {
+                trace!("0xCB {:#04X}: SET 6,(HL). (HL):{:#04X}", opcode, mmu.read_byte(self.read_register_hl()));
+
+                let result = self.set_bit(mmu.read_byte(self.read_register_hl()), 6);
+                mmu.write_byte(self.read_register_hl(), result);
+            },
+            0xF7 => {
+                trace!("0xCB {:#04X}: SET 6,A. A:{:#04X}", opcode, self.read_register_a());
+
+                let result = self.set_bit(self.read_register_a(), 6);
+                self.write_register_a(result);
+            },
+            0xF8 => {
+                trace!("0xCB {:#04X}: SET 7,B. B:{:#04X}", opcode, self.read_register_b());
+
+                let result = self.set_bit(self.read_register_b(), 7);
+                self.write_register_b(result);
+            },
+            0xF9 => {
+                trace!("0xCB {:#04X}: SET 7,C. C:{:#04X}", opcode, self.read_register_c());
+
+                let result = self.set_bit(self.read_register_c(), 7);
+                self.write_register_c(result);
+            },
+            0xFA => {
+                trace!("0xCB {:#04X}: SET 7,D. D:{:#04X}", opcode, self.read_register_d());
+
+                let result = self.set_bit(self.read_register_d(), 7);
+                self.write_register_d(result);
+            },
+            0xFB => {
+                trace!("0xCB {:#04X}: SET 7,E. E:{:#04X}", opcode, self.read_register_e());
+
+                let result = self.set_bit(self.read_register_e(), 7);
+                self.write_register_e(result);
+            },
+            0xFC => {
+                trace!("0xCB {:#04X}: SET 7,H. H:{:#04X}", opcode, self.read_register_h());
+
+                let result = self.set_bit(self.read_register_h(), 7);
+                self.write_register_h(result);
+            },
+            0xFD => {
+                trace!("0xCB {:#04X}: SET 7,L. L:{:#04X}", opcode, self.read_register_l());
+
+                let result = self.set_bit(self.read_register_l(), 7);
+                self.write_register_l(result);
+            },
+            0xFE => {
+                trace!("0xCB {:#04X}: SET 7,(HL). (HL):{:#04X}", opcode, mmu.read_byte(self.read_register_hl()));
+
+                let result = self.set_bit(mmu.read_byte(self.read_register_hl()), 7);
+                mmu.write_byte(self.read_register_hl(), result);
+            },
+            0xFF => {
+                trace!("0xCB {:#04X}: SET 7,A. A:{:#04X}", opcode, self.read_register_a());
+
+                let result = self.set_bit(self.read_register_a(), 7);
+                self.write_register_a(result);
             },
             _ => {
                 error!("Unknown 0xCB OpCode {:#04X}", opcode);
@@ -1812,7 +3252,7 @@ impl CPU {
             self.unset_flag_bit(HALF_CARRY_BIT);
         }
 
-        let result = value + 1;
+        let result = value.wrapping_add(1);
 
         if result == 0 {
             self.set_flag_bit(ZERO_BIT);
@@ -1994,6 +3434,80 @@ impl CPU {
         return result;
     }
 
+    fn shift_left(&mut self, value: u8) -> u8 {
+        // Unset flag bits
+        self.unset_flag_bit(SUBTRACTION_BIT);
+        self.unset_flag_bit(HALF_CARRY_BIT);
+
+        if self.most_significant_bit(value) > 0 {
+            self.set_flag_bit(CARRY_BIT);
+        } else {
+            self.unset_flag_bit(CARRY_BIT);
+        }
+
+        let result = (value << 1);
+
+        // Set zero bit
+        if result == 0 {
+            self.set_flag_bit(ZERO_BIT);
+        } else {
+            self.unset_flag_bit(ZERO_BIT);
+        }
+
+        return result;
+    }
+
+    fn shift_right(&mut self, value: u8) -> u8 {
+        // Unset flag bits
+        self.unset_flag_bit(SUBTRACTION_BIT);
+        self.unset_flag_bit(HALF_CARRY_BIT);
+
+        if self.least_significant_bit(value) > 0 {
+            self.set_flag_bit(CARRY_BIT);
+        } else {
+            self.unset_flag_bit(CARRY_BIT);
+        }
+
+        let result = value >> 1;
+
+        // Set zero bit
+        if result == 0 {
+            self.set_flag_bit(ZERO_BIT);
+        } else {
+            self.unset_flag_bit(ZERO_BIT);
+        }
+
+        return result;
+    }
+
+    fn shift_right_preserve_msb(&mut self, value: u8) -> u8 {
+        // Unset flag bits
+        self.unset_flag_bit(SUBTRACTION_BIT);
+        self.unset_flag_bit(HALF_CARRY_BIT);
+
+        if self.least_significant_bit(value) > 0 {
+            self.set_flag_bit(CARRY_BIT);
+        } else {
+            self.unset_flag_bit(CARRY_BIT);
+        }
+
+        let result;
+        if self.most_significant_bit(value) > 0 {
+            result = (value >> 1) | 0x80;
+        } else {
+            result = value >> 1;
+        }
+
+        // Set zero bit
+        if result == 0 {
+            self.set_flag_bit(ZERO_BIT);
+        } else {
+            self.unset_flag_bit(ZERO_BIT);
+        }
+
+        return result;
+    }
+
     fn add_u8_to_a(&mut self, value: u8) {
         let a = self.read_register_a();
 
@@ -2085,14 +3599,14 @@ impl CPU {
             self.unset_flag_bit(CARRY_BIT);
         }
 
+        let result = a.wrapping_sub(value);
+
         // TODO - Does this work right???
-        if (a - value) & 0xF > a & 0xF {
+        if result & 0xF > a & 0xF {
             self.set_flag_bit(HALF_CARRY_BIT);
         } else {
             self.unset_flag_bit(HALF_CARRY_BIT);
         }
-
-        let result = a - value;
 
         if result == 0 {
             self.set_flag_bit(ZERO_BIT);
@@ -2206,6 +3720,48 @@ impl CPU {
         } else {
             self.unset_flag_bit(HALF_CARRY_BIT);
         }
+    }
+
+    fn test_bit(&mut self, value: u8, bit: u8) {
+        let x = 0x1 << bit;
+
+        // Test bit
+        if value & x == 0 {
+            self.set_flag_bit(ZERO_BIT)
+        } else {
+            self.unset_flag_bit(ZERO_BIT);
+        }
+
+        // Set flags
+        self.set_flag_bit(HALF_CARRY_BIT);
+        self.unset_flag_bit(SUBTRACTION_BIT);
+    }
+
+    fn set_bit(&mut self, value: u8, bit: u8) -> u8 {
+        return value | (0x1 << bit);
+    }
+
+    fn reset_bit(&mut self, value: u8, bit: u8) -> u8 {
+        return value & (!(0x1 << bit));
+    }
+
+    fn swap_byte(&mut self, value: u8) -> u8 {
+        // Unset flags
+        self.unset_flag_bit(SUBTRACTION_BIT);
+        self.unset_flag_bit(HALF_CARRY_BIT);
+        self.unset_flag_bit(CARRY_BIT);
+
+        let low_half = value & 0x0F;
+        let high_half = (value >> 4) & 0x0F;
+        let result = (low_half << 4) + high_half;
+
+        if result == 0 {
+            self.set_flag_bit(ZERO_BIT);
+        } else {
+            self.unset_flag_bit(ZERO_BIT);
+        }
+
+        return result;
     }
 
     fn read_register_a(&self) -> u8 {
@@ -2344,6 +3900,14 @@ impl CPU {
         return 0x80 & x;
     }
 
+    fn least_significant_bit_u16(&mut self, x: u16) -> u16 {
+        return 0x01 & x;
+    }
+
+    fn most_significant_bit_u16(&mut self, x: u16) -> u16 {
+        return 0x8000 & x;
+    }
+
     fn read_flag(&self, flag: u8) -> u8 {
         match flag {
             ZERO_BIT => return (self.read_register_f() & ZERO_BIT) >> 7,
@@ -2357,15 +3921,4 @@ impl CPU {
 
         exit(1);
     }
-
-    //TODO - other functions
-//    #define SET_BIT(x,y)            (x |= (0x01 << y))
-//
-//    #define UNSET_BIT(x,y)          (x &= ~(0x01 << y))
-
-//    #define LSB(x)                  (x & 0x01)
-//
-//    #define BYTESWAP(x)             ((x << 8) | (x & 0x00FF))
-//
-//    uint16_t GetPC();
 }

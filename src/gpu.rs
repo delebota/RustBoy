@@ -22,13 +22,16 @@ pub struct GPU {
     state: u8,
     state_clock: u32,
     lcd_control: u8,
+    lcd_status: u8, // TODO - implement and use this
     scroll_y: u8,
     scroll_x: u8,
-    render_line: u8,
     palette: [u8; 4],
-    palette_reference: [Color; 4],
+    sprite_palette_0: [u8; 4], //TODO - 0 is always transparent, may need seperate palette_ref
+    sprite_palette_1: [u8; 4], //TODO - 0 is always transparent, may need seperate palette_ref
     window_y: u8,
     window_x: u8,
+    render_line: u8,
+    palette_reference: [Color; 4],
     lock_vram: bool,
     pub vram_debug: bool
 }
@@ -50,13 +53,16 @@ impl GPU {
         let state = STATE_OAM_READ;
         let state_clock = 0;
         let lcd_control = 0;
+        let lcd_status = 0;
         let scroll_y = 0;
         let scroll_x = 0;
-        let render_line = 0;
         let palette = [0; 4];
-        let palette_reference = [Color::RGB(155,188,15), Color::RGB(139,172,15), Color::RGB(48,98,48), Color::RGB(15,56,15)];
+        let sprite_palette_0 = [0; 4];
+        let sprite_palette_1 = [0; 4];
         let window_y = 0;
         let window_x = 0;
+        let render_line = 0;
+        let palette_reference = [Color::RGB(155,188,15), Color::RGB(139,172,15), Color::RGB(48,98,48), Color::RGB(15,56,15)];
         let lock_vram = false;
         let vram_debug = false;
 
@@ -70,22 +76,29 @@ impl GPU {
             state,
             state_clock,
             lcd_control,
+            lcd_status,
             scroll_y,
             scroll_x,
-            render_line,
             palette,
-            palette_reference,
+            sprite_palette_0,
+            sprite_palette_1,
             window_y,
             window_x,
+            render_line,
+            palette_reference,
             lock_vram,
             vram_debug
         }
     }
 
+    //TODO - implement remaining gpu registers
     pub fn read_register(&self, address: u16) -> u8 {
         match address {
             0xFF40 => {
                 return self.lcd_control;
+            },
+            0xFF41 => {
+                return self.lcd_status;
             },
             0xFF42 => {
                 return self.scroll_y;
@@ -98,6 +111,10 @@ impl GPU {
             },
             0xFF47 => {
                 warn!("Tried to read palette from GPU. You cannot read this value. Returning 0");
+                return 0;
+            },
+            0xFF48 | 0xFF49 => {
+                warn!("Tried to read sprite palette from GPU. You cannot read this value. Returning 0");
                 return 0;
             },
             0xFF4A => {
@@ -113,11 +130,15 @@ impl GPU {
         }
     }
 
+    //TODO - implement remaining gpu registers
     pub fn write_register(&mut self, address: u16, value: u8) {
         match address {
             0xFF40 => {
                 self.lcd_control = value;
                 return;
+            },
+            0xFF41 => {
+                self.lcd_status = value;
             },
             0xFF42 => {
                 self.scroll_y = value;
@@ -136,6 +157,20 @@ impl GPU {
                 self.palette[2] = (value & 0x30) >> 4;
                 self.palette[1] = (value & 0x0C) >> 2;
                 self.palette[0] =  value & 0x03;
+                return;
+            },
+            0xFF48 => {
+                self.sprite_palette_0[3] = (value & 0xC0) >> 6;
+                self.sprite_palette_0[2] = (value & 0x30) >> 4;
+                self.sprite_palette_0[1] = (value & 0x0C) >> 2;
+                self.sprite_palette_0[0] =  value & 0x03;
+                return;
+            },
+            0xFF49 => {
+                self.sprite_palette_1[3] = (value & 0xC0) >> 6;
+                self.sprite_palette_1[2] = (value & 0x30) >> 4;
+                self.sprite_palette_1[1] = (value & 0x0C) >> 2;
+                self.sprite_palette_1[0] =  value & 0x03;
                 return;
             },
             0xFF4A => {
@@ -223,10 +258,12 @@ impl GPU {
             tilemap_base = 0x1C00;
         }
 
+        // TODO - better var names
         let step1 = (self.render_line + self.scroll_y) & 255;
         let step2: u16 = (step1 >> 3) as u16;
         let step3: u16 = step2 << 5;
 
+        //TODO - somewhere in here we need to check bg_tileset flag and offset accordingly
         let offset_base: u16 = tilemap_base + step3 as u16;
 
         let y: u8 = (self.render_line + self.scroll_y) & 7;
@@ -335,6 +372,7 @@ impl GPU {
         return (self.lcd_control & 0x02) >> 1;
     }
 
+    // TODO - this should be checked whenever we draw BG elements
     fn get_background_status(&self) -> u8 {
         return self.lcd_control & 0x01;
     }

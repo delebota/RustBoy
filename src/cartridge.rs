@@ -1,5 +1,5 @@
 // Cartridge Types
-  const ROM_ONLY: u8            = 0x00;
+  pub const ROM_ONLY: u8            = 0x00;
 //const MBC1: u8                = 0x01;
 //const MBC1_RAM: u8            = 0x02;
 //const MBC1_RAM_BATT: u8       = 0x03;
@@ -68,17 +68,17 @@ impl Cartridge {
         }
     }
 
-    pub fn trace_cartridge(&mut self) {
-        trace!("Cartridge Data");
-        trace!("Title: '{}'", self.title);
-        trace!("GB Type: {:#04X}", self.gameboy_type);
-        trace!("Is SGB: {:#04X}", self.is_super_gameboy);
-        trace!("Cart Type: {:#04X}", self.cartridge_type);
-        trace!("ROM Size: {:#04X}", self.rom_size);
-        trace!("RAM Size: {:#04X}", self.ram_size);
-        trace!("Region: {:#04X}", self.region);
-        trace!("Licensee: {:#04X}", self.licensee);
-        trace!("Version: {:#04X}", self.version);
-        trace!("CheckSum: {:#06X}", self.checksum);
+    pub fn print_cartridge(&mut self) {
+        debug!("Cartridge Data");
+        debug!("Title: '{}'", self.title);
+        debug!("GB Type: {:#04X}", self.gameboy_type);
+        debug!("Is SGB: {:#04X}", self.is_super_gameboy);
+        debug!("Cart Type: {:#04X}", self.cartridge_type);
+        debug!("ROM Size: {:#04X}", self.rom_size);
+        debug!("RAM Size: {:#04X}", self.ram_size);
+        debug!("Region: {:#04X}", self.region);
+        debug!("Licensee: {:#04X}", self.licensee);
+        debug!("Version: {:#04X}", self.version);
+        debug!("CheckSum: {:#06X}", self.checksum);
     }
 }

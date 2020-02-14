@@ -60,7 +60,9 @@ impl GameBoy {
         self.cartridge.licensee = self.mmu.read_byte(0x14B);
         self.cartridge.version = self.mmu.read_byte(0x14C);
         self.cartridge.checksum = self.mmu.read_word(0x14E);
-        self.cartridge.trace_cartridge();
+        self.cartridge.print_cartridge();
+
+        self.mmu.set_cartridge_type(self.cartridge.cartridge_type);
     }
 
     pub fn skip_bios(&mut self, skip: bool) {

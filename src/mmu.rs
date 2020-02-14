@@ -1,16 +1,16 @@
-//TODO
-//#define SET_INT_VBLANK(x)   intflags = ((intflags & 0xFE) | x) //Set bit 0
-//#define SET_INT_LCDSTAT(x)  intflags = ((intflags & 0xFD) | (x << 1)) //Set bit 1
-//#define SET_INT_TIMER(x)    intflags = ((intflags & 0xFB) | (x << 2))
-//#define SET_INT_SERIAL(x)   intflags = ((intflags & 0xF7) | (x << 3))
-//#define SET_INT_JOYPAD(x)   intflags = ((intflags & 0xEF) | (x << 4))
-
 use std::fs::File;
 use std::io;
 use std::io::Read;
 use std::process::exit;
 
 use crate::gpu::GPU;
+
+//TODO
+//#define SET_INT_VBLANK(x)   intflags = ((intflags & 0xFE) | x) //Set bit 0
+//#define SET_INT_LCDSTAT(x)  intflags = ((intflags & 0xFD) | (x << 1)) //Set bit 1
+//#define SET_INT_TIMER(x)    intflags = ((intflags & 0xFB) | (x << 2))
+//#define SET_INT_SERIAL(x)   intflags = ((intflags & 0xF7) | (x << 3))
+//#define SET_INT_JOYPAD(x)   intflags = ((intflags & 0xEF) | (x << 4))
 
 pub struct MMU {
     pub gpu: GPU,
@@ -44,7 +44,7 @@ impl MMU {
         let io_ports = [0; 64];
         let zram = [0; 127];
         let interrupt_enable_register = 0;
-        let active_rom_bank = 1;
+        let active_rom_bank = 0;
         let is_bios_mapped = false;
 
         MMU {
@@ -183,7 +183,7 @@ impl MMU {
 
             match addr_nibble_1 {
                 0x0 | 0x1 | 0x2 | 0x3 => { // ROM Bank 0
-                    warn!("Tried to write to ROM Bank 0");
+                    warn!("Tried to write to ROM Bank 0. {:#06X} = {}", address, value);
                     return;
                 },
                 0x4 | 0x5 | 0x6 | 0x7 => { // Switchable ROM Bank
@@ -237,7 +237,7 @@ impl MMU {
                                 },
                                 0x4 | 0x5 | 0x6 | 0x7 => { // GPU Registers
                                     if address == 0xFF50 && value == 0x01 {
-                                        trace!("BIOS has finished running");
+                                        debug!("BIOS has finished running");
                                         self.is_bios_mapped = false;
                                     } else {
                                         self.gpu.write_register(address, value);

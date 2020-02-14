@@ -1,18 +1,12 @@
+use std::process::exit;
+
 use sdl2::{EventPump, Sdl};
 use sdl2::pixels::Color;
 use sdl2::rect::Point;
 use sdl2::render::Canvas;
 use sdl2::video::Window;
 
-static NINTENDO_LOGO: [u8; 48] = [
-    0xCE, 0xED, 0x66, 0x66, 0xCC, 0x0D, 0x00, 0x0B,
-    0x03, 0x73, 0x00, 0x83, 0x00, 0x0C, 0x00, 0x0D,
-    0x00, 0x08, 0x11, 0x1F, 0x88, 0x89, 0x00, 0x0E,
-    0xDC, 0xCC, 0x6E, 0xE6, 0xDD, 0xDD, 0xD9, 0x99,
-    0xBB, 0xBB, 0x67, 0x63, 0x6E, 0x0E, 0xEC, 0xCC,
-    0xDD, 0xDC, 0x99, 0x9F, 0xBB, 0xB9, 0x33, 0x3E
-];
-
+// GPU States
 pub const STATE_HBLANK: u8    = 0;
 pub const STATE_VBLANK: u8    = 1;
 pub const STATE_OAM_READ: u8  = 2;
@@ -197,14 +191,22 @@ impl GPU {
                     if self.vram_debug {
                         // If VRAM Debugging - draw update
                         self.vram_debug_canvas.set_draw_color(self.palette_reference[pixel_value as usize]);
-                        self.vram_debug_canvas.draw_point(Point::new((((tile_index % 32) * 8) + pixel_index as u16) as i32, (((tile_index / 32) * 8) + row_index) as i32));
+                        let result = self.vram_debug_canvas.draw_point(Point::new((((tile_index % 32) * 8) + pixel_index as u16) as i32, (((tile_index / 32) * 8) + row_index) as i32));
+                        if result.is_err() {
+                            error!("Error: {:?}", result.err());
+                            exit(1);
+                        }
                     }
                 }
             } else {
                 if self.vram_debug {
                     // If VRAM Debugging - draw update
                     self.vram_debug_canvas.set_draw_color(Color::RGB(255 - value, 255 - value, 255 - value));
-                    self.vram_debug_canvas.draw_line(Point::new(((index % 32) * 8) as i32, (index / 32) as i32), Point::new((((index % 32) * 8) + 8) as i32, (index / 32) as i32));
+                    let result = self.vram_debug_canvas.draw_line(Point::new(((index % 32) * 8) as i32, (index / 32) as i32), Point::new((((index % 32) * 8) + 8) as i32, (index / 32) as i32));
+                    if result.is_err() {
+                        error!("Error: {:?}", result.err());
+                        exit(1);
+                    }
                 }
             }
         }
@@ -234,7 +236,11 @@ impl GPU {
             let color = self.palette_reference[self.palette[self.tileset[t_index as usize][y as usize][(x % 8)  as usize] as usize] as usize];
 
             self.canvas.set_draw_color(color);
-            self.canvas.draw_point(Point::new(x as i32, self.render_line as i32));
+            let result = self.canvas.draw_point(Point::new(x as i32, self.render_line as i32));
+            if result.is_err() {
+                error!("Error: {:?}", result.err());
+                exit(1);
+            }
         }
     }
 

@@ -29,7 +29,7 @@ impl GameBoy {
             }
 
             // TODO - proper processing speed
-            // TODO - microseconds not millis
+            // microseconds not millis
 //            thread::sleep(time::Duration::from_millis(10));
         }
     }

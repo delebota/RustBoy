@@ -31,9 +31,9 @@ const OPERATION_BYTES: [u16; 256] = [
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, // A
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, // B
     1, 1, 3, 3, 3, 1, 2, 1, 1, 1, 3, 1, 3, 3, 2, 1, // C
-    1, 1, 3, 0, 3, 1, 2, 1, 1, 1, 3, 0, 3, 0, 2, 1, // D
-    2, 1, 1, 0, 0, 1, 2, 1, 2, 1, 3, 0, 0, 0, 2, 1, // E
-    2, 1, 1, 1, 0, 1, 2, 1, 2, 1, 3, 1, 0, 0, 2, 1  // F
+    1, 1, 3, 1, 3, 1, 2, 1, 1, 1, 3, 1, 3, 1, 2, 1, // D
+    2, 1, 1, 1, 1, 1, 2, 1, 2, 1, 3, 1, 1, 1, 2, 1, // E
+    2, 1, 1, 1, 1, 1, 2, 1, 2, 1, 3, 1, 1, 1, 2, 1  // F
 ];
 
 const OPERATION_MACHINE_CYCLES: [u32; 256] = [
@@ -51,9 +51,9 @@ const OPERATION_MACHINE_CYCLES: [u32; 256] = [
     1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, // A
     1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, // B
     2, 3, 3, 4, 3, 4, 2, 4, 2, 4, 3, 1, 3, 6, 2, 4, // C
-    2, 3, 3, 0, 3, 4, 2, 4, 2, 4, 3, 0, 3, 0, 2, 4, // D
-    3, 3, 2, 0, 0, 4, 2, 4, 4, 1, 4, 0, 0, 0, 2, 4, // E
-    3, 3, 2, 1, 0, 4, 2, 4, 3, 2, 4, 1, 0, 0, 2, 4  // F
+    2, 3, 3, 1, 3, 4, 2, 4, 2, 4, 3, 1, 3, 1, 2, 4, // D
+    3, 3, 2, 1, 1, 4, 2, 4, 4, 1, 4, 1, 1, 1, 2, 4, // E
+    3, 3, 2, 1, 1, 4, 2, 4, 3, 2, 4, 1, 1, 1, 2, 4  // F
 ];
 
 const OPERATION_MACHINE_CYCLES_BRANCHED: [u32; 256] = [
@@ -71,9 +71,9 @@ const OPERATION_MACHINE_CYCLES_BRANCHED: [u32; 256] = [
     1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, // A
     1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, // B
     5, 3, 4, 4, 6, 4, 2, 4, 5, 4, 4, 1, 6, 6, 2, 4, // C
-    5, 3, 4, 0, 6, 4, 2, 4, 5, 4, 4, 0, 6, 0, 2, 4, // D
-    3, 3, 2, 0, 0, 4, 2, 4, 4, 1, 4, 0, 0, 0, 2, 4, // E
-    3, 3, 2, 1, 0, 4, 2, 4, 3, 2, 4, 1, 0, 0, 2, 4  // F
+    5, 3, 4, 1, 6, 4, 2, 4, 5, 4, 4, 1, 6, 1, 2, 4, // D
+    3, 3, 2, 1, 1, 4, 2, 4, 4, 1, 4, 1, 1, 1, 2, 4, // E
+    3, 3, 2, 1, 1, 4, 2, 4, 3, 2, 4, 1, 1, 1, 2, 4  // F
 ];
 
 #[derive(Copy, Clone)]
@@ -184,7 +184,7 @@ impl CPU {
                 self.write_register_b(result);
             },
             0x05 => {
-                trace!("{:#04X}: DEC B. B:{:#04X} -> {:#04X}", opcode, self.read_register_b(), self.read_register_b().wrapping_sub(1));
+                trace!("{:#04X}: DEC B. B:{:#04X} -> {:#04X}", opcode, self.read_register_b(), self.read_register_b() - 1);
 
                 let result = self.decrease_register_u8(self.read_register_b());
                 self.write_register_b(result);
@@ -245,7 +245,7 @@ impl CPU {
                 self.write_register_a(result);
             },
             0x10 => {
-                trace!("{:#04X}: STOP.", opcode);
+                error!("{:#04X}: STOP.", opcode);
                 //TODO
             },
             0x11 => {
@@ -376,7 +376,7 @@ impl CPU {
                 self.write_register_h(result);
             },
             0x25 => {
-                trace!("{:#04X}: DEC H. H:{:#04X} -> {:#04X}", opcode, self.read_register_h(), self.read_register_h().wrapping_sub(1));
+                trace!("{:#04X}: DEC H. H:{:#04X} -> {:#04X}", opcode, self.read_register_h(), self.read_register_h() - 1);
 
                 let result = self.decrease_register_u8(self.read_register_h());
                 self.write_register_h(result);
@@ -466,7 +466,7 @@ impl CPU {
                 self.write_register_l(result);
             },
             0x2D => {
-                trace!("{:#04X}: DEC L. L:{:#04X} -> {:#04X}", opcode, self.read_register_l(), self.read_register_l().wrapping_sub(1));
+                trace!("{:#04X}: DEC L. L:{:#04X} -> {:#04X}", opcode, self.read_register_l(), self.read_register_l() - 1);
 
                 let result = self.decrease_register_u8(self.read_register_l());
                 self.write_register_l(result);
@@ -522,7 +522,7 @@ impl CPU {
                 self.write_register_hl(result);
             },
             0x35 => {
-                trace!("{:#04X}: DEC (HL). (HL):{:#04X} -> {:#04X}", opcode, self.read_register_hl(), self.read_register_hl().wrapping_sub(1));
+                trace!("{:#04X}: DEC (HL). (HL):{:#04X} -> {:#04X}", opcode, self.read_register_hl(), self.read_register_hl() - 1);
 
                 let result = self.decrease_register_u16(self.read_register_hl());
                 self.write_register_hl(result);
@@ -874,7 +874,7 @@ impl CPU {
                 mmu.write_byte(self.read_register_hl(), self.read_register_b());
             },
             0x76 => {
-                trace!("{:#04X}: HALT.", opcode);
+                error!("{:#04X}: HALT.", opcode);
                 //TODO
             },
             0x77 => {
@@ -1719,8 +1719,7 @@ impl CPU {
             0xD3 | 0xDB | 0xDD | 0xE3 |
             0xE4 | 0xEB | 0xEC | 0xED |
             0xF4 | 0xFC | 0xFD        => {
-                error!("Tried to call unused OpCode {}", opcode);
-                exit(1);
+                warn!("Tried to call unused OpCode {}", opcode);
             }
             _ => {
                 error!("Unknown OpCode {:#04X}", opcode);
@@ -2152,7 +2151,7 @@ impl CPU {
             0x46 => {
                 trace!("0xCB {:#04X}: BIT 0,(HL). (HL):{:#04X}", opcode, mmu.read_byte(self.read_register_hl()));
 
-                self.test_bit(smmu.read_byte(self.read_register_hl()), 0);
+                self.test_bit(mmu.read_byte(self.read_register_hl()), 0);
             },
             0x47 => {
                 trace!("0xCB {:#04X}: BIT 0,A. A:{:#04X}", opcode, self.read_register_a());
@@ -2232,7 +2231,7 @@ impl CPU {
             0x56 => {
                 trace!("0xCB {:#04X}: BIT 2,(HL). (HL):{:#04X}", opcode, mmu.read_byte(self.read_register_hl()));
 
-                self.test_bit(smmu.read_byte(self.read_register_hl()), 2);
+                self.test_bit(mmu.read_byte(self.read_register_hl()), 2);
             },
             0x57 => {
                 trace!("0xCB {:#04X}: BIT 2,A. A:{:#04X}", opcode, self.read_register_a());
@@ -2312,7 +2311,7 @@ impl CPU {
             0x66 => {
                 trace!("0xCB {:#04X}: BIT 4,(HL). (HL):{:#04X}", opcode, mmu.read_byte(self.read_register_hl()));
 
-                self.test_bit(smmu.read_byte(self.read_register_hl()), 4);
+                self.test_bit(mmu.read_byte(self.read_register_hl()), 4);
             },
             0x67 => {
                 trace!("0xCB {:#04X}: BIT 4,A. A:{:#04X}", opcode, self.read_register_a());
@@ -2392,7 +2391,7 @@ impl CPU {
             0x76 => {
                 trace!("0xCB {:#04X}: BIT 6,(HL). (HL):{:#04X}", opcode, mmu.read_byte(self.read_register_hl()));
 
-                self.test_bit(smmu.read_byte(self.read_register_hl()), 6);
+                self.test_bit(mmu.read_byte(self.read_register_hl()), 6);
             },
             0x77 => {
                 trace!("0xCB {:#04X}: BIT 6,A. A:{:#04X}", opcode, self.read_register_a());
@@ -3246,7 +3245,7 @@ impl CPU {
     }
 
     fn increase_register_u8(&mut self, value: u8) -> u8 {
-        if value & 0xF == 0xF {
+        if ((value & 0xF).wrapping_add(1 & 0xF) & 0x10) == 0x10 {
             self.set_flag_bit(HALF_CARRY_BIT);
         } else {
             self.unset_flag_bit(HALF_CARRY_BIT);
@@ -3266,13 +3265,14 @@ impl CPU {
     }
 
     fn increase_register_u16(&mut self, value: u16) -> u16 {
-        if value & 0xF == 0xF {
+
+        if ((value & 0xF).wrapping_add(1 & 0xF) & 0x10) == 0x10 {
             self.set_flag_bit(HALF_CARRY_BIT);
         } else {
             self.unset_flag_bit(HALF_CARRY_BIT);
         }
 
-        let result = value + 1;
+        let result = value.wrapping_add(1);
 
         if result == 0 {
             self.set_flag_bit(ZERO_BIT);
@@ -3288,8 +3288,7 @@ impl CPU {
     fn decrease_register_u8(&mut self, value: u8) -> u8 {
         self.set_flag_bit(SUBTRACTION_BIT);
 
-        // TODO - Pretty sure this doesn't work right
-        if (((value & 0xF) + (-1i8 & 0xF) as u8) & 0x10) == 0x10 {
+        if ((value & 0xF).wrapping_sub(1 & 0xF) & 0x10) == 0x10 {
             self.set_flag_bit(HALF_CARRY_BIT);
         } else {
             self.unset_flag_bit(HALF_CARRY_BIT);
@@ -3309,8 +3308,7 @@ impl CPU {
     fn decrease_register_u16(&mut self, value: u16) -> u16 {
         self.set_flag_bit(SUBTRACTION_BIT);
 
-        // TODO - Pretty sure this doesn't work right
-        if (((value & 0xF) + (-1i8 & 0xF) as u16) & 0x10) == 0x10 {
+        if ((value & 0xF).wrapping_sub(1 & 0xF) & 0x10) == 0x10 {
             self.set_flag_bit(HALF_CARRY_BIT);
         } else {
             self.unset_flag_bit(HALF_CARRY_BIT);
@@ -3335,11 +3333,11 @@ impl CPU {
         let mut result;
         if self.most_significant_bit(value) > 0 {
             self.set_flag_bit(CARRY_BIT);
-            result = (value << 1);
+            result = value << 1;
             result |= 0x1;
         } else {
             self.unset_flag_bit(CARRY_BIT);
-            result = (value << 1);
+            result = value << 1;
         }
 
         // Set zero bit
@@ -3366,7 +3364,7 @@ impl CPU {
             self.unset_flag_bit(CARRY_BIT);
         }
 
-        let result = (value << 1) | carry;
+        let result = value << 1 | carry;
 
         // Set zero bit
         if result == 0 {
@@ -3386,11 +3384,11 @@ impl CPU {
         let mut result;
         if self.least_significant_bit(value) > 0 {
             self.set_flag_bit(CARRY_BIT);
-            result = (value >> 1);
+            result = value >> 1;
             result |= 0x80;
         } else {
             self.unset_flag_bit(CARRY_BIT);
-            result = (value >> 1);
+            result = value >> 1;
         }
 
         // Set zero bit
@@ -3422,7 +3420,7 @@ impl CPU {
             self.unset_flag_bit(CARRY_BIT);
         }
 
-        let result = (value >> 1) | carry;
+        let result = value >> 1 | carry;
 
         // Set zero bit
         if result == 0 {
@@ -3445,7 +3443,7 @@ impl CPU {
             self.unset_flag_bit(CARRY_BIT);
         }
 
-        let result = (value << 1);
+        let result = value << 1;
 
         // Set zero bit
         if result == 0 {
@@ -3519,8 +3517,7 @@ impl CPU {
             self.unset_flag_bit(CARRY_BIT);
         }
 
-        // TODO - Does this work?
-        if ((a & 0xF) + value & 0xF) > 0xF {
+        if ((a & 0xF).wrapping_add(value & 0xF) & 0x10) == 0x10 {
             self.set_flag_bit(HALF_CARRY_BIT);
         } else {
             self.unset_flag_bit(HALF_CARRY_BIT);
@@ -3557,8 +3554,7 @@ impl CPU {
             self.unset_flag_bit(CARRY_BIT);
         }
 
-        //TODO - Does this work right?
-        if result > 0xF {
+        if ((a & 0xF).wrapping_add(value_carry & 0xF) & 0x10) == 0x10 {
             self.set_flag_bit(HALF_CARRY_BIT);
         } else {
             self.unset_flag_bit(HALF_CARRY_BIT);
@@ -3601,8 +3597,7 @@ impl CPU {
 
         let result = a.wrapping_sub(value);
 
-        // TODO - Does this work right???
-        if result & 0xF > a & 0xF {
+        if ((a & 0xF).wrapping_sub(value & 0xF) & 0x10) == 0x10 {
             self.set_flag_bit(HALF_CARRY_BIT);
         } else {
             self.unset_flag_bit(HALF_CARRY_BIT);
@@ -3629,8 +3624,7 @@ impl CPU {
             self.unset_flag_bit(CARRY_BIT);
         }
 
-        //TODO - Does this work right?
-        if (result & 0xF) > (a & 0xF) {
+        if ((a & 0xF).wrapping_sub(value_carry & 0xF) & 0x10) == 0x10 {
             self.set_flag_bit(HALF_CARRY_BIT);
         } else {
             self.unset_flag_bit(HALF_CARRY_BIT);
@@ -3714,8 +3708,7 @@ impl CPU {
             self.unset_flag_bit(CARRY_BIT);
         }
 
-        // TODO - Does this work?
-        if ((a.wrapping_sub(value)) & 0xF) > (a & 0xF) {
+        if ((a & 0xF).wrapping_sub(value & 0xF) & 0x10) == 0x10 {
             self.set_flag_bit(HALF_CARRY_BIT);
         } else {
             self.unset_flag_bit(HALF_CARRY_BIT);

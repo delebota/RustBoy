@@ -2,3 +2,5 @@
 /target
 /roms
 out.log
+SDL2.dll
+sdl2-config

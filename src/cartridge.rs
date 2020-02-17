@@ -1,8 +1,8 @@
 // Cartridge Types
-  pub const ROM_ONLY: u8            = 0x00;
-//const MBC1: u8                = 0x01;
-//const MBC1_RAM: u8            = 0x02;
-//const MBC1_RAM_BATT: u8       = 0x03;
+pub const ROM_ONLY: u8            = 0x00;
+pub const MBC1: u8                = 0x01;
+pub const MBC1_RAM: u8            = 0x02;
+pub const MBC1_RAM_BATT: u8       = 0x03;
 //const MBC2: u8                = 0x05;
 //const MBC2_BATT: u8           = 0x06;
 //const RAM: u8                 = 0x08;

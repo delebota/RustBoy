@@ -45,12 +45,13 @@ impl GameBoy {
 
         // Setup Cartridge
         debug!("Setting up Cartridge Data");
-        let mut title: Vec<u8> = vec![0; 16];
-        for i in 0..16 {
-            // Read Title
-            title[i] = self.mmu.read_byte((0x134 + i) as u16);
-        }
-        self.cartridge.title = String::from_utf8(title).unwrap();
+        //TODO
+//        let mut title: Vec<u8> = vec![0; 16];
+//        for i in 0..16 {
+//            // Read Title
+//            title[i] = self.mmu.read_byte((0x134 + i) as u16);
+//        }
+//        self.cartridge.title = String::from_utf8(title).unwrap();
         self.cartridge.gameboy_type = self.mmu.read_byte(0x143);
         self.cartridge.is_super_gameboy = self.mmu.read_byte(0x146);
         self.cartridge.cartridge_type = self.mmu.read_byte(0x147);

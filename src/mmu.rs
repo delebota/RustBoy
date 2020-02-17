@@ -3,7 +3,7 @@ use std::io;
 use std::io::Read;
 use std::process::exit;
 
-use crate::cartridge::{Cartridge, ROM_ONLY};
+use crate::cartridge::{MBC1, MBC1_RAM, MBC1_RAM_BATT, ROM_ONLY};
 use crate::gpu::GPU;
 
 //TODO
@@ -29,6 +29,8 @@ pub struct MMU {
     interrupt_enable_register: u8, // Int Enable Reg,  0xFFFF
 
     active_rom_bank: u8,
+    rom_size: u8,
+    memory_model: u8,
     cartridge_type: u8,
     pub is_bios_mapped: bool
 }
@@ -47,6 +49,8 @@ impl MMU {
         let zram = [0; 127];
         let interrupt_enable_register = 0;
         let active_rom_bank = 1;
+        let rom_size = 0;
+        let memory_model = 0;
         let cartridge_type = ROM_ONLY;
         let is_bios_mapped = false;
 
@@ -61,6 +65,8 @@ impl MMU {
             zram,
             interrupt_enable_register,
             active_rom_bank,
+            rom_size,
+            memory_model,
             cartridge_type,
             is_bios_mapped
         }
@@ -87,10 +93,11 @@ impl MMU {
         let mut buffer = Vec::new();
         let file_size = file.read_to_end(&mut buffer)?;
 
-        // TODO - This is setup for tetris, loop should be based on total filesize/banks
-        for rom_bank in 0..0x2 {
+        self.set_rom_size(buffer[0x148]);
+
+        for rom_banks in 0..self.rom_size {
             for i in 0..0x4000 {
-                self.rom_banks[rom_bank][i] = buffer[i + (rom_bank * 0x4000)];
+                self.rom_banks[rom_banks as usize][i as usize] = buffer[i + (rom_banks as u32 * 0x4000) as usize];
             }
         }
 
@@ -146,6 +153,14 @@ impl MMU {
                                 return self.interrupt_enable_register;
                             }
 
+                            if address == 0xFF00 { // Joypad
+                                match self.gpu.input.column {
+                                    0x10 => return self.gpu.input.keys[0],
+                                    0x20 => return self.gpu.input.keys[1],
+                                    _ => {return 0}
+                                }
+                            }
+
                             match addr_nibble_3 {
                                 0x0 | 0x1 | 0x2 | 0x3 => { // I/O Ports
                                     return self.io_ports[(address - 0xFF00) as usize];
@@ -195,8 +210,13 @@ impl MMU {
                     self.update_active_rom_bank(value);
                     return;
                 },
-                0x4 | 0x5 | 0x6 | 0x7 => { // Switchable ROM Bank
+                0x4 | 0x5 => { // Switchable ROM Bank
                     warn!("Tried to write to Switchable ROM Bank. {:#06X} = {}", address, value);
+                    return;
+                },
+                0x6 | 0x7 => {
+                    trace!("Changing memory model.");
+                    self.update_memory_model(value);
                     return;
                 },
                 0x8 | 0x9 => { // Video RAM
@@ -229,7 +249,7 @@ impl MMU {
                                 self.oam[(address & 0xFF) as usize] = value;
                                 return;
                             } else {
-                                warn!("Tried to write to an unused address {:#X}", address);
+                                trace!("Tried to write to an unused address {:#X}", address);
                                 return;
                             }
                         },
@@ -237,6 +257,10 @@ impl MMU {
                             if address == 0xFFFF { // Int Enable Register
                                 self.interrupt_enable_register = value;
                                 return;
+                            }
+
+                            if address == 0xFF00 { // Joypad
+                                self.gpu.input.column = value & 0x30;
                             }
 
                             match addr_nibble_3 {
@@ -278,15 +302,73 @@ impl MMU {
         self.cartridge_type = value;
     }
 
-    fn update_active_rom_bank(&self, value: u8) {
-        //TODO - support MBC1,2,3,5 cart types, maybe others...
+    pub fn set_rom_size(&mut self, value: u8) {
+        match value {
+            0 => self.rom_size = 2,
+            1 => self.rom_size = 4,
+            2 => self.rom_size = 8,
+            3 => self.rom_size = 16,
+            4 => self.rom_size = 32,
+            5 => self.rom_size = 64,
+            6 => self.rom_size = 128,
+            _ => {trace!("Unknown ROM size {}", value)}
+        }
+    }
+
+    fn update_active_rom_bank(&mut self, value: u8) {
+        //TODO - support 2,3,5 cart types, maybe others...
         match self.cartridge_type {
             ROM_ONLY => {
                 trace!("Tried to change active ROM bank on a ROM_ONLY cartridge.");
                 return;
             },
+            MBC1 | MBC1_RAM | MBC1_RAM_BATT => {
+                //TODO - trace
+                debug!("Switching ROM Bank {}", value);
+
+                if value == 0 {
+                    self.active_rom_bank = 1;
+                } else if value < 32 {
+                    self.active_rom_bank = value;
+                } else {
+                    error!("Tried to assign invalid ROM bank {}, should be 0-31.", value);
+                    exit(1);
+                }
+
+            },
             _ => {
-                trace!("Tried to change active ROM bank on an unknown/unsupported cartridge type - {}", self.cartridge_type);
+                //TODO - trace
+                debug!("Tried to change active ROM bank on an unknown/unsupported cartridge type - CT:{:#04X} - Value:{}", self.cartridge_type, value);
+                exit(1);
+            }
+        }
+    }
+
+    fn update_memory_model(&mut self, value: u8) {
+        //TODO - support 2,3,5 cart types, maybe others...
+        match self.cartridge_type {
+            ROM_ONLY => {
+                if value == 0 || value == 1 {
+                    return;
+                } else {
+                    trace!("Tried to change memory model on a ROM_ONLY cartridge.");
+                    return;
+                }
+            },
+            MBC1 | MBC1_RAM | MBC1_RAM_BATT => {
+                if value & 0x1 == 1 {
+                    //TODO - trace
+                    debug!("Memory Model set to 1");
+                    self.memory_model = 1;
+                } else {
+                    //TODO - trace
+                    debug!("Memory Model set to 0");
+                    self.memory_model = 0;
+                }
+            },
+            _ => {
+                //TODO - trace
+                debug!("Tried to change memory model on an unknown/unsupported cartridge type - CT:{:#04X} - Value:{}", self.cartridge_type, value);
                 exit(1);
             }
         }

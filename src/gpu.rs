@@ -6,6 +6,10 @@ use sdl2::rect::Point;
 use sdl2::render::Canvas;
 use sdl2::video::Window;
 
+use crate::input::Input;
+use sdl2::event::Event;
+use sdl2::keyboard::Keycode;
+
 // GPU States
 pub const STATE_HBLANK: u8    = 0;
 pub const STATE_VBLANK: u8    = 1;
@@ -17,6 +21,7 @@ pub struct GPU {
     canvas: Canvas<Window>,
     pub vram_debug_canvas: Canvas<Window>,
     event_pump: EventPump,
+    pub input: Input,
     vram: [u8; 8192],
     tileset: Box<[Vec<Vec<u8>>]>,
     state: u8,
@@ -25,12 +30,15 @@ pub struct GPU {
     lcd_status: u8, // TODO - implement and use this
     scroll_y: u8,
     scroll_x: u8,
+    render_line: u8,
+    ly_compare: u8,   // TODO - implement and use this
+    dma_transfer: u8, // TODO - implement and use this
     palette: [u8; 4],
     sprite_palette_0: [u8; 4], //TODO - 0 is always transparent, may need seperate palette_ref
     sprite_palette_1: [u8; 4], //TODO - 0 is always transparent, may need seperate palette_ref
     window_y: u8,
     window_x: u8,
-    render_line: u8,
+    gpu_registers: [u8; 52],
     palette_reference: [Color; 4],
     lock_vram: bool,
     pub vram_debug: bool
@@ -48,6 +56,7 @@ impl GPU {
             .window("VRAM", 256, 256).position(800, 300).hidden().build().unwrap()
             .into_canvas().accelerated().build().unwrap();
         let event_pump = sdl_context.event_pump().unwrap();
+        let input = Input::new();
         let vram = [0; 8192];
         let tileset = vec![vec![vec![0u8; 8]; 8]; 384].into_boxed_slice();
         let state = STATE_OAM_READ;
@@ -56,13 +65,19 @@ impl GPU {
         let lcd_status = 0;
         let scroll_y = 0;
         let scroll_x = 0;
+        let render_line = 0;
+        let ly_compare = 0;
+        let dma_transfer = 0;
         let palette = [0; 4];
         let sprite_palette_0 = [0; 4];
         let sprite_palette_1 = [0; 4];
         let window_y = 0;
         let window_x = 0;
-        let render_line = 0;
+        let gpu_registers= [0; 52];
+        // Green Palette - OG GameBoy
         let palette_reference = [Color::RGB(155,188,15), Color::RGB(139,172,15), Color::RGB(48,98,48), Color::RGB(15,56,15)];
+        // B&W Palette - GameBoy Pocket
+        // let palette_reference = [Color::RGB(255,255,255), Color::RGB(192,192,192), Color::RGB(96,96,96), Color::RGB(0,0,0)];
         let lock_vram = false;
         let vram_debug = false;
 
@@ -71,6 +86,7 @@ impl GPU {
             canvas,
             vram_debug_canvas,
             event_pump,
+            input,
             vram,
             tileset,
             state,
@@ -79,19 +95,21 @@ impl GPU {
             lcd_status,
             scroll_y,
             scroll_x,
+            render_line,
+            ly_compare,
+            dma_transfer,
             palette,
             sprite_palette_0,
             sprite_palette_1,
             window_y,
             window_x,
-            render_line,
+            gpu_registers,
             palette_reference,
             lock_vram,
             vram_debug
         }
     }
 
-    //TODO - implement remaining gpu registers
     pub fn read_register(&self, address: u16) -> u8 {
         match address {
             0xFF40 => {
@@ -109,6 +127,14 @@ impl GPU {
             0xFF44 => {
                 return self.render_line;
             },
+            0xFF45 => {
+                //TODO - Can we read this?
+                return self.ly_compare;
+            },
+            0xFF46 => {
+                //TODO - Can we read this?
+                return self.dma_transfer;
+            },
             0xFF47 => {
                 warn!("Tried to read palette from GPU. You cannot read this value. Returning 0");
                 return 0;
@@ -124,14 +150,16 @@ impl GPU {
                 return self.window_x;
             },
             _ => {
-                warn!("Tried to read GPU register {:#06X}. Unknown or not yet implemented. Returning 0", address);
-                return 0;
+//                warn!("Tried to read GPU register {:#06X}. Unknown. Returning 0", address);
+//                return 0;
+                return self.gpu_registers[(address - 0xFF4C) as usize];
             }
         }
     }
 
-    //TODO - implement remaining gpu registers
     pub fn write_register(&mut self, address: u16, value: u8) {
+        trace!("Setting Register: {:#06X} to {}", address, value);
+
         match address {
             0xFF40 => {
                 self.lcd_control = value;
@@ -150,6 +178,16 @@ impl GPU {
             },
             0xFF44 => {
                 warn!("Tried to write render_line in GPU. You cannot write this value. Returning without writing");
+                return;
+            },
+            0xFF45 => {
+                //TODO
+                self.ly_compare = value;
+                return;
+            },
+            0xFF46 => {
+                //TODO
+                self.dma_transfer = value;
                 return;
             },
             0xFF47 => {
@@ -182,7 +220,9 @@ impl GPU {
                 return;
             },
             _ => {
-                warn!("Tried to write to GPU register {:#06X}. Unknown or not yet implemented. Returning without writing", address);
+//                warn!("Tried to write to GPU register {:#06X}. Unknown or not yet implemented. Returning without writing", address);
+//                return;
+                self.gpu_registers[(address - 0xFF4C) as usize];
                 return;
             }
         }
@@ -258,19 +298,20 @@ impl GPU {
             tilemap_base = 0x1C00;
         }
 
-        // TODO - better var names
-        let step1 = (self.render_line + self.scroll_y) & 255;
-        let step2: u16 = (step1 >> 3) as u16;
-        let step3: u16 = step2 << 5;
+        let offset: u16 = (((self.render_line + self.scroll_y) as u16 & 255) >> 3) << 5;
+        let offset_base: u16 = tilemap_base + offset;
 
-        //TODO - somewhere in here we need to check bg_tileset flag and offset accordingly
-        let offset_base: u16 = tilemap_base + step3 as u16;
-
-        let y: u8 = (self.render_line + self.scroll_y) & 7;
+        let y: u8 = self.render_line.wrapping_add(self.scroll_y) & 7;
 
         for x in 0..160 {
-            let t_index: u8 = self.vram[(offset_base + (x / 8)) as usize];
-            let color = self.palette_reference[self.palette[self.tileset[t_index as usize][y as usize][(x % 8)  as usize] as usize] as usize];
+            let mut t_index: u16 = 0;
+            if self.get_background_tileset() == 1 {
+                t_index = self.vram[(offset_base + (x / 8)) as usize] as u16;
+            } else {
+//                warn!("Using Tileset 0");
+            }
+
+            let color = self.palette_reference[self.palette[self.tileset[t_index as usize][y as usize][(x % 8) as usize] as usize] as usize];
 
             self.canvas.set_draw_color(color);
             let result = self.canvas.draw_point(Point::new(x as i32, self.render_line as i32));
@@ -282,6 +323,33 @@ impl GPU {
     }
 
     pub fn tick(&mut self, clock_m: u32) {
+
+        // TODO - Handle this properly somewhere else...
+        for event in self.event_pump.poll_iter() {
+            match event {
+                Event::Quit    { timestamp } => exit(2),
+                Event::KeyDown { keycode: Some(Keycode::Escape), ..} => exit(2),
+
+                Event::KeyDown { keycode: Some(Keycode::Right), ..} => {  self.input.keys[1] &= 0xE},
+                Event::KeyDown { keycode: Some(Keycode::Left), ..} => {   self.input.keys[1] &= 0xD},
+                Event::KeyDown { keycode: Some(Keycode::Up), ..} => {     self.input.keys[1] &= 0xB},
+                Event::KeyDown { keycode: Some(Keycode::Down), ..} => {   self.input.keys[1] &= 0x7},
+                Event::KeyDown { keycode: Some(Keycode::Z), ..} => {      self.input.keys[0] &= 0xE},
+                Event::KeyDown { keycode: Some(Keycode::X), ..} => {      self.input.keys[0] &= 0xD},
+                Event::KeyDown { keycode: Some(Keycode::Space), ..} => {  self.input.keys[0] &= 0xB},
+                Event::KeyDown { keycode: Some(Keycode::KpEnter), ..} => {self.input.keys[0] &= 0x7},
+
+                Event::KeyUp   { keycode: Some(Keycode::Right), ..} => {  self.input.keys[1] |= 0x1},
+                Event::KeyUp   { keycode: Some(Keycode::Left), ..} => {   self.input.keys[1] |= 0x2},
+                Event::KeyUp   { keycode: Some(Keycode::Up), ..} => {     self.input.keys[1] |= 0x4},
+                Event::KeyUp   { keycode: Some(Keycode::Down), ..} => {   self.input.keys[1] |= 0x8},
+                Event::KeyUp   { keycode: Some(Keycode::Z), ..} => {      self.input.keys[0] |= 0x1},
+                Event::KeyUp   { keycode: Some(Keycode::X), ..} => {      self.input.keys[0] |= 0x2},
+                Event::KeyUp   { keycode: Some(Keycode::Space), ..} => {  self.input.keys[0] |= 0x4},
+                Event::KeyUp   { keycode: Some(Keycode::KpEnter), ..} => {self.input.keys[0] |= 0x8},
+                _ => {}
+            }
+        }
 
         self.state_clock += clock_m;
 

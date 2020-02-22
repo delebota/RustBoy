@@ -7,8 +7,6 @@ use sdl2::render::Canvas;
 use sdl2::video::Window;
 
 use crate::input::Input;
-use sdl2::event::Event;
-use sdl2::keyboard::Keycode;
 
 // GPU States
 pub const STATE_HBLANK: u8    = 0;
@@ -298,7 +296,7 @@ impl GPU {
             tilemap_base = 0x1C00;
         }
 
-        let offset: u16 = (((self.render_line + self.scroll_y) as u16 & 255) >> 3) << 5;
+        let offset: u16 = (((self.render_line as u16 + self.scroll_y as u16) & 255) >> 3) << 5;
         let offset_base: u16 = tilemap_base + offset;
 
         let y: u8 = self.render_line.wrapping_add(self.scroll_y) & 7;
@@ -323,33 +321,32 @@ impl GPU {
     }
 
     pub fn tick(&mut self, clock_m: u32) {
-
-        // TODO - Handle this properly somewhere else...
-        for event in self.event_pump.poll_iter() {
-            match event {
-                Event::Quit    { timestamp } => exit(2),
-                Event::KeyDown { keycode: Some(Keycode::Escape), ..} => exit(2),
-
-                Event::KeyDown { keycode: Some(Keycode::Right), ..} => {  self.input.keys[1] &= 0xE},
-                Event::KeyDown { keycode: Some(Keycode::Left), ..} => {   self.input.keys[1] &= 0xD},
-                Event::KeyDown { keycode: Some(Keycode::Up), ..} => {     self.input.keys[1] &= 0xB},
-                Event::KeyDown { keycode: Some(Keycode::Down), ..} => {   self.input.keys[1] &= 0x7},
-                Event::KeyDown { keycode: Some(Keycode::Z), ..} => {      self.input.keys[0] &= 0xE},
-                Event::KeyDown { keycode: Some(Keycode::X), ..} => {      self.input.keys[0] &= 0xD},
-                Event::KeyDown { keycode: Some(Keycode::Space), ..} => {  self.input.keys[0] &= 0xB},
-                Event::KeyDown { keycode: Some(Keycode::KpEnter), ..} => {self.input.keys[0] &= 0x7},
-
-                Event::KeyUp   { keycode: Some(Keycode::Right), ..} => {  self.input.keys[1] |= 0x1},
-                Event::KeyUp   { keycode: Some(Keycode::Left), ..} => {   self.input.keys[1] |= 0x2},
-                Event::KeyUp   { keycode: Some(Keycode::Up), ..} => {     self.input.keys[1] |= 0x4},
-                Event::KeyUp   { keycode: Some(Keycode::Down), ..} => {   self.input.keys[1] |= 0x8},
-                Event::KeyUp   { keycode: Some(Keycode::Z), ..} => {      self.input.keys[0] |= 0x1},
-                Event::KeyUp   { keycode: Some(Keycode::X), ..} => {      self.input.keys[0] |= 0x2},
-                Event::KeyUp   { keycode: Some(Keycode::Space), ..} => {  self.input.keys[0] |= 0x4},
-                Event::KeyUp   { keycode: Some(Keycode::KpEnter), ..} => {self.input.keys[0] |= 0x8},
-                _ => {}
-            }
-        }
+        // // TODO - Handle this properly somewhere else...
+        // for event in self.event_pump.poll_iter() {
+        //     match event {
+        //         Event::Quit    { timestamp } => exit(2),
+        //         Event::KeyDown { keycode: Some(Keycode::Escape), ..} => exit(2),
+        //
+        //         Event::KeyDown { keycode: Some(Keycode::Right), ..} => {  self.input.keys[1] &= 0xE},
+        //         Event::KeyDown { keycode: Some(Keycode::Left), ..} => {   self.input.keys[1] &= 0xD},
+        //         Event::KeyDown { keycode: Some(Keycode::Up), ..} => {     self.input.keys[1] &= 0xB},
+        //         Event::KeyDown { keycode: Some(Keycode::Down), ..} => {   self.input.keys[1] &= 0x7},
+        //         Event::KeyDown { keycode: Some(Keycode::Z), ..} => {      self.input.keys[0] &= 0xE},
+        //         Event::KeyDown { keycode: Some(Keycode::X), ..} => {      self.input.keys[0] &= 0xD},
+        //         Event::KeyDown { keycode: Some(Keycode::Space), ..} => {  self.input.keys[0] &= 0xB},
+        //         Event::KeyDown { keycode: Some(Keycode::KpEnter), ..} => {self.input.keys[0] &= 0x7},
+        //
+        //         Event::KeyUp   { keycode: Some(Keycode::Right), ..} => {  self.input.keys[1] |= 0x1},
+        //         Event::KeyUp   { keycode: Some(Keycode::Left), ..} => {   self.input.keys[1] |= 0x2},
+        //         Event::KeyUp   { keycode: Some(Keycode::Up), ..} => {     self.input.keys[1] |= 0x4},
+        //         Event::KeyUp   { keycode: Some(Keycode::Down), ..} => {   self.input.keys[1] |= 0x8},
+        //         Event::KeyUp   { keycode: Some(Keycode::Z), ..} => {      self.input.keys[0] |= 0x1},
+        //         Event::KeyUp   { keycode: Some(Keycode::X), ..} => {      self.input.keys[0] |= 0x2},
+        //         Event::KeyUp   { keycode: Some(Keycode::Space), ..} => {  self.input.keys[0] |= 0x4},
+        //         Event::KeyUp   { keycode: Some(Keycode::KpEnter), ..} => {self.input.keys[0] |= 0x8},
+        //         _ => {}
+        //     }
+        // }
 
         self.state_clock += clock_m;
 

@@ -3,7 +3,7 @@ use std::io;
 use std::io::Read;
 use std::process::exit;
 
-use crate::cartridge::{MBC1, MBC1_RAM, MBC1_RAM_BATT, ROM_ONLY};
+use crate::cartridge::{ROM_ONLY, MBC1, MBC1_RAM, MBC1_RAM_BATT};
 use crate::gpu::GPU;
 
 //TODO
@@ -91,7 +91,7 @@ impl MMU {
 
         let mut file = File::open(path)?;
         let mut buffer = Vec::new();
-        let file_size = file.read_to_end(&mut buffer)?;
+        file.read_to_end(&mut buffer)?;
 
         self.set_rom_size(buffer[0x148]);
 
@@ -154,11 +154,14 @@ impl MMU {
                             }
 
                             if address == 0xFF00 { // Joypad
-                                match self.gpu.input.column {
-                                    0x10 => return self.gpu.input.keys[0],
-                                    0x20 => return self.gpu.input.keys[1],
-                                    _ => {return 0}
-                                }
+                                //TODO - input handle
+                                // match self.gpu.input.column {
+                                //     0x10 => return self.gpu.input.keys[0],
+                                //     0x20 => return self.gpu.input.keys[1],
+                                //     _ => {
+                                        return 0x0F;
+                                //     }
+                                // }
                             }
 
                             match addr_nibble_3 {
@@ -311,11 +314,12 @@ impl MMU {
             4 => self.rom_size = 32,
             5 => self.rom_size = 64,
             6 => self.rom_size = 128,
-            _ => {trace!("Unknown ROM size {}", value)}
+            _ => {error!("Unknown ROM size {}", value); exit(1);}
         }
     }
 
     fn update_active_rom_bank(&mut self, value: u8) {
+        // TODO - Finish MBC1 support
         //TODO - support 2,3,5 cart types, maybe others...
         match self.cartridge_type {
             ROM_ONLY => {
@@ -328,10 +332,10 @@ impl MMU {
 
                 if value == 0 {
                     self.active_rom_bank = 1;
-                } else if value < 32 {
+                } else if value < self.rom_size && value < 32 {
                     self.active_rom_bank = value;
                 } else {
-                    error!("Tried to assign invalid ROM bank {}, should be 0-31.", value);
+                    error!("Tried to assign invalid ROM bank {}, should be 0-{}.", value, self.rom_size);
                     exit(1);
                 }
 
@@ -345,6 +349,7 @@ impl MMU {
     }
 
     fn update_memory_model(&mut self, value: u8) {
+        // TODO - Finish MBC1 support
         //TODO - support 2,3,5 cart types, maybe others...
         match self.cartridge_type {
             ROM_ONLY => {

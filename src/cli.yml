@@ -9,11 +9,17 @@ args:
       value_name: FILE
       help: Sets the BIN file to load that contains the BIOS. If no file is specified RustBoy will boot straight into the specified ROM.
       takes_value: true
-  - debug_vram:
+  - debug:
       short: d
-      long: debug_vram
+      long: debug
       value_name: BOOL
-      help: Enable/Disable VRAM Debug window. (May slow performance)
+      help: Enable/Disable Debug windows. (May slow performance)
+      takes_value: true
+  - pause:
+      short: p
+      long: pause
+      value_name: BOOL
+      help: Starts the emulator in paused mode if set to true.
       takes_value: true
   - rom:
       short: r

@@ -77,6 +77,7 @@ impl GameBoy {
         self.cpu.write_register_de(0x00D8);
         self.cpu.write_register_hl(0x014D);
         self.cpu.stack_pointer = 0xFFFE;
+        self.mmu.write_byte(0xFF00, 0x0F);
         self.mmu.write_byte(0xFF05, 0x00);
         self.mmu.write_byte(0xFF06, 0x00);
         self.mmu.write_byte(0xFF07, 0x00);

@@ -36,10 +36,14 @@ fn main() {
     // Parse args
     let bios_path = matches.value_of("bios").unwrap_or("");
     let rom_path= matches.value_of("rom").unwrap_or("");
-    let vram_debug = matches.value_of("debug_vram").unwrap_or("false");
-    if vram_debug.eq_ignore_ascii_case("true") {
+    let debug = matches.value_of("debug").unwrap_or("false");
+    if debug.eq_ignore_ascii_case("true") {
         gameboy.mmu.gpu.vram_debug = true;
         gameboy.mmu.gpu.vram_debug_canvas.window_mut().show();
+    }
+    let paused = matches.value_of("pause").unwrap_or("false");
+    if paused.eq_ignore_ascii_case("true") {
+        gameboy.is_paused = true;
     }
 
     if bios_path.is_empty() && rom_path.is_empty() {

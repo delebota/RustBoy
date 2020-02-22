@@ -31,9 +31,9 @@ const OPERATION_BYTES: [u16; 256] = [
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, // A
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, // B
     1, 1, 3, 3, 3, 1, 2, 1, 1, 1, 3, 1, 3, 3, 2, 1, // C
-    1, 1, 3, 1, 3, 1, 2, 1, 1, 1, 3, 1, 3, 1, 2, 1, // D
-    2, 1, 1, 1, 1, 1, 2, 1, 2, 1, 3, 1, 1, 1, 2, 1, // E
-    2, 1, 1, 1, 1, 1, 2, 1, 2, 1, 3, 1, 1, 1, 2, 1  // F
+    1, 1, 3, 0, 3, 1, 2, 1, 1, 1, 3, 0, 3, 0, 2, 1, // D
+    2, 1, 1, 0, 0, 1, 2, 1, 2, 1, 3, 0, 0, 0, 2, 1, // E
+    2, 1, 1, 1, 0, 1, 2, 1, 2, 1, 3, 1, 0, 0, 2, 1  // F
 ];
 
 const OPERATION_MACHINE_CYCLES: [u32; 256] = [
@@ -51,9 +51,9 @@ const OPERATION_MACHINE_CYCLES: [u32; 256] = [
     1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, // A
     1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, // B
     2, 3, 3, 4, 3, 4, 2, 4, 2, 4, 3, 1, 3, 6, 2, 4, // C
-    2, 3, 3, 1, 3, 4, 2, 4, 2, 4, 3, 1, 3, 1, 2, 4, // D
-    3, 3, 2, 1, 1, 4, 2, 4, 4, 1, 4, 1, 1, 1, 2, 4, // E
-    3, 3, 2, 1, 1, 4, 2, 4, 3, 2, 4, 1, 1, 1, 2, 4  // F
+    2, 3, 3, 0, 3, 4, 2, 4, 2, 4, 3, 0, 3, 0, 2, 4, // D
+    3, 3, 2, 0, 0, 4, 2, 4, 4, 1, 4, 0, 0, 0, 2, 4, // E
+    3, 3, 2, 1, 0, 4, 2, 4, 3, 2, 4, 1, 0, 0, 2, 4  // F
 ];
 
 const OPERATION_MACHINE_CYCLES_BRANCHED: [u32; 256] = [
@@ -71,9 +71,9 @@ const OPERATION_MACHINE_CYCLES_BRANCHED: [u32; 256] = [
     1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, // A
     1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, // B
     5, 3, 4, 4, 6, 4, 2, 4, 5, 4, 4, 1, 6, 6, 2, 4, // C
-    5, 3, 4, 1, 6, 4, 2, 4, 5, 4, 4, 1, 6, 1, 2, 4, // D
-    3, 3, 2, 1, 1, 4, 2, 4, 4, 1, 4, 1, 1, 1, 2, 4, // E
-    3, 3, 2, 1, 1, 4, 2, 4, 3, 2, 4, 1, 1, 1, 2, 4  // F
+    5, 3, 4, 0, 6, 4, 2, 4, 5, 4, 4, 0, 6, 0, 2, 4, // D
+    3, 3, 2, 0, 0, 4, 2, 4, 4, 1, 4, 0, 0, 0, 2, 4, // E
+    3, 3, 2, 1, 0, 4, 2, 4, 3, 2, 4, 1, 0, 0, 2, 4  // F
 ];
 
 #[derive(Copy, Clone)]
@@ -173,18 +173,18 @@ impl CPU {
                 mmu.write_byte(self.read_register_bc(), self.read_register_a());
             },
             0x03 => {
-                trace!("{:#04X}: INC BC. BC:{:#06X} -> {:#06X}", opcode, self.read_register_bc(), self.read_register_bc() + 1);
+                trace!("{:#04X}: INC BC. BC:{:#06X} -> {:#06X}", opcode, self.read_register_bc(), self.read_register_bc().wrapping_add(1));
 
-                self.write_register_bc(self.read_register_bc() + 1);
+                self.write_register_bc(self.read_register_bc().wrapping_add(1));
             },
             0x04 => {
-                trace!("{:#04X}: INC B. B:{:#04X} -> {:#04X}", opcode, self.read_register_b(), self.read_register_b() + 1);
+                trace!("{:#04X}: INC B. B:{:#04X} -> {:#04X}", opcode, self.read_register_b(), self.read_register_b().wrapping_add(1));
 
                 let result = self.increase_register_u8(self.read_register_b());
                 self.write_register_b(result);
             },
             0x05 => {
-                trace!("{:#04X}: DEC B. B:{:#04X} -> {:#04X}", opcode, self.read_register_b(), self.read_register_b() - 1);
+                trace!("{:#04X}: DEC B. B:{:#04X} -> {:#04X}", opcode, self.read_register_b(), self.read_register_b().wrapping_sub(1));
 
                 let result = self.decrease_register_u8(self.read_register_b());
                 self.write_register_b(result);
@@ -197,7 +197,7 @@ impl CPU {
             0x07 => {
                 trace!("{:#04X}: RLC A. A:{:#04X}", opcode, self.read_register_a());
 
-                let result = self.rotate_left(self.read_register_a());
+                let result = self.rotate_left(self.read_register_a(), false);
                 self.write_register_a(result);
             }
             0x08 => {
@@ -217,18 +217,18 @@ impl CPU {
                 self.write_register_a(mmu.read_byte(self.read_register_bc()));
             },
             0x0B => {
-                trace!("{:#04X}: DEC BC. BC:{:#04X} -> {:#04X}", opcode, self.read_register_bc(), self.read_register_bc() - 1);
+                trace!("{:#04X}: DEC BC. BC:{:#04X} -> {:#04X}", opcode, self.read_register_bc(), self.read_register_bc().wrapping_sub(1));
 
-                self.write_register_bc(self.read_register_bc() - 1);
+                self.write_register_bc(self.read_register_bc().wrapping_sub(1));
             },
             0x0C => {
-                trace!("{:#04X}: INC C. C:{:#04X} -> {:#04X}", opcode, self.read_register_c(), self.read_register_c() + 1);
+                trace!("{:#04X}: INC C. C:{:#04X} -> {:#04X}", opcode, self.read_register_c(), self.read_register_c().wrapping_add(1));
 
                 let result = self.increase_register_u8(self.read_register_c());
                 self.write_register_c(result);
             },
             0x0D => {
-                trace!("{:#04X}: DEC C. C:{:#04X} -> {:#04X}", opcode, self.read_register_c(), self.read_register_c() - 1);
+                trace!("{:#04X}: DEC C. C:{:#04X} -> {:#04X}", opcode, self.read_register_c(), self.read_register_c().wrapping_sub(1));
 
                 let result = self.decrease_register_u8(self.read_register_c());
                 self.write_register_c(result);
@@ -241,13 +241,13 @@ impl CPU {
             0x0F => {
                 trace!("{:#04X}: RRC A. A:{:#04X}", opcode, self.read_register_a());
 
-                let result = self.rotate_right(self.read_register_a());
+                let result = self.rotate_right(self.read_register_a(), false);
                 self.write_register_a(result);
             },
-            0x10 => {
-                error!("{:#04X}: STOP.", opcode);
-                //TODO
-            },
+            // 0x10 => {
+            //     error!("{:#04X}: STOP.", opcode);
+            //     //TODO
+            // },
             0x11 => {
                 trace!("{:#04X}: LD DE,d16. DE:{:#06X} <- d16:{:#06X}", opcode, self.read_register_de(), mmu.read_word(self.program_counter + 1));
 
@@ -259,18 +259,18 @@ impl CPU {
                 mmu.write_byte(self.read_register_de(), self.read_register_a());
             },
             0x13 => {
-                trace!("{:#04X}: INC DE. DE:{:#06X} -> {:#06X}", opcode, self.read_register_de(), self.read_register_de() + 1);
+                trace!("{:#04X}: INC DE. DE:{:#06X} -> {:#06X}", opcode, self.read_register_de(), self.read_register_de().wrapping_add(1));
 
-                self.write_register_de(self.read_register_de() + 1);
+                self.write_register_de(self.read_register_de().wrapping_add(1));
             },
             0x14 => {
-                trace!("{:#04X}: INC D. D:{:#04X} -> {:#04X}", opcode, self.read_register_d(), self.read_register_d() + 1);
+                trace!("{:#04X}: INC D. D:{:#04X} -> {:#04X}", opcode, self.read_register_d(), self.read_register_d().wrapping_add(1));
 
                 let result = self.increase_register_u8(self.read_register_d());
                 self.write_register_d(result);
             },
             0x15 => {
-                trace!("{:#04X}: DEC D. D:{:#04X} -> {:#04X}", opcode, self.read_register_d(), self.read_register_d() - 1);
+                trace!("{:#04X}: DEC D. D:{:#04X} -> {:#04X}", opcode, self.read_register_d(), self.read_register_d().wrapping_sub(1));
 
                 let result = self.decrease_register_u8(self.read_register_d());
                 self.write_register_d(result);
@@ -283,7 +283,7 @@ impl CPU {
             0x17 => {
                 trace!("{:#04X}: RL A. A:{:#04X}", opcode, self.read_register_a());
 
-                let result = self.rotate_left_through_carry(self.read_register_a());
+                let result = self.rotate_left_through_carry(self.read_register_a(), false);
                 self.write_register_a(result);
             },
             0x18 => {
@@ -309,18 +309,18 @@ impl CPU {
                 self.write_register_a(mmu.read_byte(self.read_register_de()));
             },
             0x1B => {
-                trace!("{:#04X}: DEC DE. DE:{:#04X} -> {:#04X}", opcode, self.read_register_de(), self.read_register_de() - 1);
+                trace!("{:#04X}: DEC DE. DE:{:#04X} -> {:#04X}", opcode, self.read_register_de(), self.read_register_de().wrapping_sub(1));
 
-                self.write_register_de(self.read_register_de() - 1);
+                self.write_register_de(self.read_register_de().wrapping_sub(1));
             },
             0x1C => {
-                trace!("{:#04X}: INC E. E:{:#04X} -> {:#04X}", opcode, self.read_register_e(), self.read_register_e() + 1);
+                trace!("{:#04X}: INC E. E:{:#04X} -> {:#04X}", opcode, self.read_register_e(), self.read_register_e().wrapping_add(1));
 
                 let result = self.increase_register_u8(self.read_register_e());
                 self.write_register_e(result);
             },
             0x1D => {
-                trace!("{:#04X}: DEC E. E:{:#04X} -> {:#04X}", opcode, self.read_register_e(), self.read_register_e() - 1);
+                trace!("{:#04X}: DEC E. E:{:#04X} -> {:#04X}", opcode, self.read_register_e(), self.read_register_e().wrapping_sub(1));
 
                 let result = self.decrease_register_u8(self.read_register_e());
                 self.write_register_e(result);
@@ -333,7 +333,7 @@ impl CPU {
             0x1F => {
                 trace!("{:#04X}: RR A. A:{:#04X}", opcode, self.read_register_a());
 
-                let result = self.rotate_right_through_carry(self.read_register_a());
+                let result = self.rotate_right_through_carry(self.read_register_a(), false);
                 self.write_register_a(result);
             },
             0x20 => {
@@ -362,21 +362,21 @@ impl CPU {
                 trace!("{:#04X}: LD (HL+),A. (HL):{:#06X} <- A:{:#04X}", opcode, mmu.read_byte(self.read_register_hl()), self.read_register_a());
 
                 mmu.write_byte(self.read_register_hl(), self.read_register_a());
-                self.write_register_hl(self.read_register_hl() + 1);
+                self.write_register_hl(self.read_register_hl().wrapping_add(1));
             },
             0x23 => {
-                trace!("{:#04X}: INC HL. HL:{:#06X} -> {:#06X}", opcode, self.read_register_hl(), self.read_register_hl() + 1);
+                trace!("{:#04X}: INC HL. HL:{:#06X} -> {:#06X}", opcode, self.read_register_hl(), self.read_register_hl().wrapping_add(1));
 
-                self.write_register_hl(self.read_register_hl() + 1);
+                self.write_register_hl(self.read_register_hl().wrapping_add(1));
             },
             0x24 => {
-                trace!("{:#04X}: INC H. H:{:#04X} -> {:#04X}", opcode, self.read_register_h(), self.read_register_h() + 1);
+                trace!("{:#04X}: INC H. H:{:#04X} -> {:#04X}", opcode, self.read_register_h(), self.read_register_h().wrapping_add(1));
 
                 let result = self.increase_register_u8(self.read_register_h());
                 self.write_register_h(result);
             },
             0x25 => {
-                trace!("{:#04X}: DEC H. H:{:#04X} -> {:#04X}", opcode, self.read_register_h(), self.read_register_h() - 1);
+                trace!("{:#04X}: DEC H. H:{:#04X} -> {:#04X}", opcode, self.read_register_h(), self.read_register_h().wrapping_sub(1));
 
                 let result = self.decrease_register_u8(self.read_register_h());
                 self.write_register_h(result);
@@ -389,7 +389,7 @@ impl CPU {
             0x27 => {
                 trace!("{:#04X}: DAA. A:{:#04X}", opcode, self.read_register_a());
 
-                let mut a: u16 = self.read_register_a() as u16;
+                let mut a: i16 = self.read_register_a() as i16;
 
                 if self.read_flag(SUBTRACTION_BIT) == 0 {
                     if self.read_flag(HALF_CARRY_BIT) == 1 || (a & 0xF) > 9 {
@@ -409,6 +409,9 @@ impl CPU {
                     }
                 }
 
+                self.unset_flag_bit(HALF_CARRY_BIT);
+                self.unset_flag_bit(ZERO_BIT);
+
                 if a & 0x100 == 0x100 {
                     self.set_flag_bit(CARRY_BIT);
                 }
@@ -421,10 +424,8 @@ impl CPU {
                     self.unset_flag_bit(ZERO_BIT);
                 }
 
-                self.unset_flag_bit(HALF_CARRY_BIT);
-
                 self.write_register_a(a as u8);
-            }
+            },
             0x28 => {
                 trace!("{:#04X}: JR Z,r8. Z:{:#04X}", opcode, self.read_flag(ZERO_BIT));
 
@@ -452,21 +453,21 @@ impl CPU {
 
                 let byte = mmu.read_byte(self.read_register_hl());
                 self.write_register_a(byte);
-                self.write_register_hl(self.read_register_hl() + 1);
+                self.write_register_hl(self.read_register_hl().wrapping_add(1));
             },
             0x2B => {
-                trace!("{:#04X}: DEC HL. HL:{:#04X} -> {:#04X}", opcode, self.read_register_hl(), self.read_register_hl() - 1);
+                trace!("{:#04X}: DEC HL. HL:{:#04X} -> {:#04X}", opcode, self.read_register_hl(), self.read_register_hl().wrapping_sub(1));
 
-                self.write_register_hl(self.read_register_hl() - 1);
+                self.write_register_hl(self.read_register_hl().wrapping_sub(1));
             },
             0x2C => {
-                trace!("{:#04X}: INC L. L:{:#04X} -> {:#04X}", opcode, self.read_register_l(), self.read_register_l() + 1);
+                trace!("{:#04X}: INC L. L:{:#04X} -> {:#04X}", opcode, self.read_register_l(), self.read_register_l().wrapping_add(1));
 
                 let result = self.increase_register_u8(self.read_register_l());
                 self.write_register_l(result);
             },
             0x2D => {
-                trace!("{:#04X}: DEC L. L:{:#04X} -> {:#04X}", opcode, self.read_register_l(), self.read_register_l() - 1);
+                trace!("{:#04X}: DEC L. L:{:#04X} -> {:#04X}", opcode, self.read_register_l(), self.read_register_l().wrapping_sub(1));
 
                 let result = self.decrease_register_u8(self.read_register_l());
                 self.write_register_l(result);
@@ -508,24 +509,26 @@ impl CPU {
                 trace!("{:#04X}: LD (HL-),A. (HL):{:#06X} <- A:{:#04X}", opcode, mmu.read_byte(self.read_register_hl()), self.read_register_a());
 
                 mmu.write_byte(self.read_register_hl(), self.read_register_a());
-                self.write_register_hl(self.read_register_hl() - 1);
+                self.write_register_hl(self.read_register_hl().wrapping_sub(1));
             },
             0x33 => {
-                trace!("{:#04X}: INC SP. SP:{:#06X} -> {:#06X}", opcode, self.stack_pointer, self.stack_pointer + 1);
+                trace!("{:#04X}: INC SP. SP:{:#06X} -> {:#06X}", opcode, self.stack_pointer, self.stack_pointer.wrapping_add(1));
 
-                self.stack_pointer += 1;
+                self.stack_pointer = self.stack_pointer.wrapping_add(1);
             },
             0x34 => {
-                trace!("{:#04X}: INC (HL). (HL):{:#04X} -> {:#04X}", opcode, self.read_register_hl(), self.read_register_hl() + 1);
+                trace!("{:#04X}: INC (HL). (HL):{:#04X} -> {:#04X}", opcode, mmu.read_byte(self.read_register_hl()), mmu.read_byte(self.read_register_hl()) + 1);
 
-                let result = self.increase_register_u16(self.read_register_hl());
-                self.write_register_hl(result);
+                let hl_byte = mmu.read_byte(self.read_register_hl());
+                let result = self.increase_register_u8(hl_byte);
+                mmu.write_byte(self.read_register_hl(), result);
             },
             0x35 => {
-                trace!("{:#04X}: DEC (HL). (HL):{:#04X} -> {:#04X}", opcode, self.read_register_hl(), self.read_register_hl() - 1);
+                trace!("{:#04X}: DEC (HL). (HL):{:#04X} -> {:#04X}", opcode, mmu.read_byte(self.read_register_hl()), mmu.read_byte(self.read_register_hl()) - 1);
 
-                let result = self.decrease_register_u16(self.read_register_hl());
-                self.write_register_hl(result);
+                let hl_byte = mmu.read_byte(self.read_register_hl());
+                let result = self.decrease_register_u8(hl_byte);
+                mmu.write_byte(self.read_register_hl(), result);
             },
             0x36 => {
                 trace!("{:#04X}: LD (HL),d8. HL:{:#06X} <- d8:{:#04X}", opcode, self.read_register_hl(), mmu.read_byte(self.program_counter + 1));
@@ -567,21 +570,21 @@ impl CPU {
 
                 let byte = mmu.read_byte(self.read_register_hl());
                 self.write_register_a(byte);
-                self.write_register_hl(self.read_register_hl() - 1);
+                self.write_register_hl(self.read_register_hl().wrapping_sub(1));
             },
             0x3B => {
-                trace!("{:#04X}: DEC SP. SP:{:#04X} -> {:#04X}", opcode, self.stack_pointer, self.stack_pointer - 1);
+                trace!("{:#04X}: DEC SP. SP:{:#04X} -> {:#04X}", opcode, self.stack_pointer, self.stack_pointer.wrapping_sub(1));
 
-                self.stack_pointer -= 1;
+                self.stack_pointer = self.stack_pointer.wrapping_sub(1);
             },
             0x3C => {
-                trace!("{:#04X}: INC A. A:{:#04X} -> {:#04X}", opcode, self.read_register_a(), self.read_register_a() + 1);
+                trace!("{:#04X}: INC A. A:{:#04X} -> {:#04X}", opcode, self.read_register_a(), self.read_register_a().wrapping_add(1));
 
                 let result = self.increase_register_u8(self.read_register_a());
                 self.write_register_a(result);
             },
             0x3D => {
-                trace!("{:#04X}: DEC A. A:{:#04X} -> {:#04X}", opcode, self.read_register_a(), self.read_register_a() - 1);
+                trace!("{:#04X}: DEC A. A:{:#04X} -> {:#04X}", opcode, self.read_register_a(), self.read_register_a().wrapping_sub(1));
 
                 let result = self.decrease_register_u8(self.read_register_a());
                 self.write_register_a(result);
@@ -636,7 +639,7 @@ impl CPU {
             0x46 => {
                 trace!("{:#04X}: LD B,(HL). B:{:#04X} <- (HL):{:#04X}", opcode, self.read_register_b(), mmu.read_byte(self.read_register_hl()));
 
-                self.write_register_a(mmu.read_byte(self.read_register_hl()));
+                self.write_register_b(mmu.read_byte(self.read_register_hl()));
             },
             0x47 => {
                 trace!("{:#04X}: LD B,A. B:{:#04X} <- A:{:#04X}", opcode, self.read_register_b(), self.read_register_a());
@@ -871,12 +874,12 @@ impl CPU {
             0x75 => {
                 trace!("{:#04X}: LD (HL),L. HL:{:#06X} <- L:{:#04X}", opcode, self.read_register_hl(), self.read_register_l());
 
-                mmu.write_byte(self.read_register_hl(), self.read_register_b());
+                mmu.write_byte(self.read_register_hl(), self.read_register_l());
             },
-            0x76 => {
-                error!("{:#04X}: HALT.", opcode);
-                //TODO
-            },
+            // 0x76 => {
+            //     error!("{:#04X}: HALT.", opcode);
+            //     //TODO
+            // },
             0x77 => {
                 trace!("{:#04X}: LD (HL),A. HL:{:#06X} <- A: {:#04X}", opcode, self.read_register_hl(), self.read_register_a());
 
@@ -1246,11 +1249,8 @@ impl CPU {
                 trace!("{:#04X}: RET NZ. Returning to {:#06X}", opcode, mmu.read_word(self.stack_pointer + 2));
 
                 if self.read_flag(ZERO_BIT) == 0 {
-                    // Increment SP to find the return address
-                    self.stack_pointer += 2;
-
-                    // Jump there
                     self.program_counter = mmu.read_word(self.stack_pointer);
+                    self.stack_pointer += 2;
                     increment_program_counter = false;
                 }
             },
@@ -1282,11 +1282,11 @@ impl CPU {
                 if self.read_flag(ZERO_BIT) == 0 {
                     trace!("Calling {}", mmu.read_word(self.program_counter + 1));
 
-                    // Write address of next instruction to the stack
-                    mmu.write_word(self.stack_pointer, self.program_counter + 3);
-
                     // We wrote two bytes, so decrement accordingly (Stack grows downwards)
                     self.stack_pointer -= 2;
+
+                    // Write address of next instruction to the stack
+                    mmu.write_word(self.stack_pointer, self.program_counter + 3);
 
                     // Set program_counter to address of function
                     self.program_counter = mmu.read_word(self.program_counter + 1);
@@ -1308,8 +1308,8 @@ impl CPU {
             0xC7 => {
                 trace!("{:#04X}: RST 0x0000", opcode);
 
+                mmu.write_word(self.stack_pointer, self.program_counter + 1);
                 self.stack_pointer -= 2;
-                mmu.write_word(self.stack_pointer, self.program_counter);
 
                 self.program_counter = 0x0000;
                 increment_program_counter = false;
@@ -1318,22 +1318,15 @@ impl CPU {
                 trace!("{:#04X}: RET Z. Returning to {:#06X}", opcode, mmu.read_word(self.stack_pointer + 2));
 
                 if self.read_flag(ZERO_BIT) == 1 {
-                    // Increment SP to find the return address
-                    self.stack_pointer += 2;
-
-                    // Jump there
                     self.program_counter = mmu.read_word(self.stack_pointer);
+                    self.stack_pointer += 2;
                     increment_program_counter = false;
                 }
             },
             0xC9 => {
                 trace!("{:#04X}: RET. Returning to {:#06X}", opcode, mmu.read_word(self.stack_pointer + 2));
-
-                // Increment SP to find the return address
-                self.stack_pointer += 2;
-
-                // Jump there
                 self.program_counter = mmu.read_word(self.stack_pointer);
+                self.stack_pointer += 2;
                 increment_program_counter = false;
             },
             0xCA => {
@@ -1356,11 +1349,11 @@ impl CPU {
                 if self.read_flag(ZERO_BIT) == 1 {
                     trace!("Calling {}", mmu.read_word(self.program_counter + 1));
 
-                    // Write address of next instruction to the stack
-                    mmu.write_word(self.stack_pointer, self.program_counter + 3);
-
                     // We wrote two bytes, so decrement accordingly (Stack grows downwards)
                     self.stack_pointer -= 2;
+
+                    // Write address of next instruction to the stack
+                    mmu.write_word(self.stack_pointer, self.program_counter + 3);
 
                     // Set program_counter to address of function
                     self.program_counter = mmu.read_word(self.program_counter + 1);
@@ -1371,11 +1364,11 @@ impl CPU {
             0xCD => {
                 trace!("{:#04X}: CALL a16. Calling {:#06X}", opcode, mmu.read_word(self.program_counter + 1));
 
-                // Write address of next instruction to the stack
-                mmu.write_word(self.stack_pointer, self.program_counter + 3);
-
                 // We wrote two bytes, so decrement accordingly (Stack grows downwards)
                 self.stack_pointer -= 2;
+
+                // Write address of next instruction to the stack
+                mmu.write_word(self.stack_pointer, self.program_counter + 3);
 
                 // Set program_counter to address of function
                 self.program_counter = mmu.read_word(self.program_counter + 1);
@@ -1389,8 +1382,8 @@ impl CPU {
             0xCF => {
                 trace!("{:#04X}: RST 0x0008", opcode);
 
+                mmu.write_word(self.stack_pointer, self.program_counter + 1);
                 self.stack_pointer -= 2;
-                mmu.write_word(self.stack_pointer, self.program_counter);
 
                 self.program_counter = 0x0008;
                 increment_program_counter = false;
@@ -1399,11 +1392,8 @@ impl CPU {
                 trace!("{:#04X}: RET NC. Returning to {:#06X}", opcode, mmu.read_word(self.stack_pointer + 2));
 
                 if self.read_flag(CARRY_BIT) == 0 {
-                    // Increment SP to find the return address
-                    self.stack_pointer += 2;
-
-                    // Jump there
                     self.program_counter = mmu.read_word(self.stack_pointer);
+                    self.stack_pointer += 2;
                     increment_program_counter = false;
                 }
             },
@@ -1429,11 +1419,11 @@ impl CPU {
                 if self.read_flag(CARRY_BIT) == 0 {
                     trace!("Calling {}", mmu.read_word(self.program_counter + 1));
 
-                    // Write address of next instruction to the stack
-                    mmu.write_word(self.stack_pointer, self.program_counter + 3);
-
                     // We wrote two bytes, so decrement accordingly (Stack grows downwards)
                     self.stack_pointer -= 2;
+
+                    // Write address of next instruction to the stack
+                    mmu.write_word(self.stack_pointer, self.program_counter + 3);
 
                     // Set program_counter to address of function
                     self.program_counter = mmu.read_word(self.program_counter + 1);
@@ -1456,7 +1446,7 @@ impl CPU {
                 trace!("{:#04X}: RST 0x0010", opcode);
 
                 self.stack_pointer -= 2;
-                mmu.write_word(self.stack_pointer, self.program_counter);
+                mmu.write_word(self.stack_pointer, self.program_counter + 1);
 
                 self.program_counter = 0x0010;
                 increment_program_counter = false;
@@ -1465,22 +1455,16 @@ impl CPU {
                 trace!("{:#04X}: RET C. Returning to {:#06X}", opcode, mmu.read_word(self.stack_pointer + 2));
 
                 if self.read_flag(CARRY_BIT) == 1 {
-                    // Increment SP to find the return address
-                    self.stack_pointer += 2;
-
-                    // Jump there
                     self.program_counter = mmu.read_word(self.stack_pointer);
+                    self.stack_pointer += 2;
                     increment_program_counter = false;
                 }
             },
             0xD9 => {
                 trace!("{:#04X}: RETI. Returning to {:#06X}", opcode, mmu.read_word(self.stack_pointer + 2));
 
-                // Increment SP to find the return address
-                self.stack_pointer += 2;
-
-                // Jump there
                 self.program_counter = mmu.read_word(self.stack_pointer);
+                self.stack_pointer += 2;
                 increment_program_counter = false;
 
                 self.interrupt_master_enable = true;
@@ -1501,11 +1485,11 @@ impl CPU {
                 if self.read_flag(CARRY_BIT) == 1 {
                     trace!("Calling {}", mmu.read_word(self.program_counter + 1));
 
-                    // Write address of next instruction to the stack
-                    mmu.write_word(self.stack_pointer, self.program_counter + 3);
-
                     // We wrote two bytes, so decrement accordingly (Stack grows downwards)
                     self.stack_pointer -= 2;
+
+                    // Write address of next instruction to the stack
+                    mmu.write_word(self.stack_pointer, self.program_counter + 3);
 
                     // Set program_counter to address of function
                     self.program_counter = mmu.read_word(self.program_counter + 1);
@@ -1522,7 +1506,7 @@ impl CPU {
                 trace!("{:#04X}: RST 0x0018", opcode);
 
                 self.stack_pointer -= 2;
-                mmu.write_word(self.stack_pointer, self.program_counter);
+                mmu.write_word(self.stack_pointer, self.program_counter + 1);
 
                 self.program_counter = 0x0018;
                 increment_program_counter = false;
@@ -1550,19 +1534,19 @@ impl CPU {
                 self.stack_pointer -= 2;
                 mmu.write_word(self.stack_pointer, self.read_register_hl());
             },
-            0xE7 => {
-                trace!("{:#04X}: RST 0x0020", opcode);
-
-                self.stack_pointer -= 2;
-                mmu.write_word(self.stack_pointer, self.program_counter);
-
-                self.program_counter = 0x0020;
-                increment_program_counter = false;
-            },
             0xE6 => {
                 trace!("{:#04X}: AND d8. A:{:#04X} -> {:#04X}", opcode, self.read_register_a(), self.read_register_a() & mmu.read_byte(self.program_counter + 1));
 
                 self.and_with_register_a(mmu.read_byte(self.program_counter + 1));
+            },
+            0xE7 => {
+                trace!("{:#04X}: RST 0x0020", opcode);
+
+                self.stack_pointer -= 2;
+                mmu.write_word(self.stack_pointer, self.program_counter + 1);
+
+                self.program_counter = 0x0020;
+                increment_program_counter = false;
             },
             0xE8 => {
                 trace!("{:#04X}: ADD SP,d8. SP:{:#06X} + d8:{:#04X}", opcode, self.stack_pointer, mmu.read_byte(self.program_counter + 1));
@@ -1570,29 +1554,27 @@ impl CPU {
                 let result;
                 let next_byte_signed: i8 = mmu.read_byte(self.program_counter + 1) as i8;
                 if next_byte_signed < 0 {
-                    result = self.stack_pointer - (next_byte_signed * -1) as u16;
-                    self.stack_pointer = result;
+                    result = self.stack_pointer.wrapping_sub((next_byte_signed * -1) as u16);
                 } else {
-                    result = self.stack_pointer + next_byte_signed as u16;
-                    self.stack_pointer = result;
+                    result = self.stack_pointer.wrapping_add(next_byte_signed as u16);
                 }
 
                 self.unset_flag_bit(ZERO_BIT);
                 self.unset_flag_bit(SUBTRACTION_BIT);
 
-                // TODO - does this work?
                 if ((self.stack_pointer ^ next_byte_signed as u16 ^ (result & 0xFFFF)) & 0x100) == 0x100 {
                     self.set_flag_bit(CARRY_BIT);
                 } else {
                     self.unset_flag_bit(CARRY_BIT);
                 }
 
-                // TODO - does this work?
                 if ((self.stack_pointer ^ next_byte_signed as u16 ^ (result & 0xFFFF)) & 0x10) == 0x10 {
                     self.set_flag_bit(HALF_CARRY_BIT);
                 } else {
                     self.unset_flag_bit(HALF_CARRY_BIT);
                 }
+
+                self.stack_pointer = result;
             },
             0xE9 => {
                 trace!("{:#04X}: JP HL. Jump to {:#06X}", opcode, self.read_register_hl());
@@ -1615,13 +1597,13 @@ impl CPU {
                 trace!("{:#04X}: RST 0x0028", opcode);
 
                 self.stack_pointer -= 2;
-                mmu.write_word(self.stack_pointer, self.program_counter);
+                mmu.write_word(self.stack_pointer, self.program_counter + 1);
 
                 self.program_counter = 0x0028;
                 increment_program_counter = false;
             },
             0xF0 => {
-                trace!("{:#04X}: LDH A,($FF00+a8). A:{:#04X} <- {:#04X}, Value of {:#06X}", opcode, self.read_register_a(), mmu.read_byte(self.program_counter + 1), (0xFF00 + mmu.read_byte(self.program_counter + 1) as u16));
+                trace!("{:#04X}: LDH A,($FF00+a8). A:{:#04X} <- Value of {:#06X}", opcode, self.read_register_a(), (0xFF00 + mmu.read_byte(self.program_counter + 1) as u16));
 
                 let next_byte = mmu.read_byte(self.program_counter + 1);
                 self.write_register_a(mmu.read_byte(0xFF00 + next_byte as u16));
@@ -1630,6 +1612,8 @@ impl CPU {
                 trace!("{:#04X}: POP AF. AF:{:#06X} <- {:#06X} SP:{:#06X}", opcode, self.read_register_af(), mmu.read_word(self.stack_pointer), self.stack_pointer);
 
                 self.write_register_af(mmu.read_word(self.stack_pointer));
+                let value = self.read_register_f() & 0xF0;
+                self.write_register_f(value);
                 self.stack_pointer += 2;
             },
             0xF2 => {
@@ -1658,7 +1642,7 @@ impl CPU {
                 trace!("{:#04X}: RST 0x0030", opcode);
 
                 self.stack_pointer -= 2;
-                mmu.write_word(self.stack_pointer, self.program_counter);
+                mmu.write_word(self.stack_pointer, self.program_counter + 1);
 
                 self.program_counter = 0x0030;
                 increment_program_counter = false;
@@ -1669,16 +1653,21 @@ impl CPU {
                 self.unset_flag_bit(ZERO_BIT);
                 self.unset_flag_bit(SUBTRACTION_BIT);
 
-                let r8 = mmu.read_byte(self.program_counter) as u16;
-                let result: u16 = self.stack_pointer + r8;
+                let result: u16;
+                let next_byte_signed: i8 = mmu.read_byte(self.program_counter + 1) as i8;
+                if next_byte_signed < 0 {
+                    result = self.stack_pointer.wrapping_sub((next_byte_signed * -1) as u16);
+                } else {
+                    result = self.stack_pointer.wrapping_add(next_byte_signed as u16);
+                }
 
-                if ((self.stack_pointer ^ r8 ^ result) & 0x100) == 0x100 {
+                if ((self.stack_pointer ^ next_byte_signed as u16 ^ result) & 0x100) == 0x100 {
                     self.set_flag_bit(CARRY_BIT);
                 } else {
                     self.unset_flag_bit(CARRY_BIT);
                 }
 
-                if ((self.stack_pointer ^ r8 ^ result) & 0x10) == 0x10 {
+                if ((self.stack_pointer ^ next_byte_signed as u16 ^ result) & 0x10) == 0x10 {
                     self.set_flag_bit(HALF_CARRY_BIT);
                 } else {
                     self.unset_flag_bit(HALF_CARRY_BIT);
@@ -1711,7 +1700,7 @@ impl CPU {
                 trace!("{:#04X}: RST 0x0038", opcode);
 
                 self.stack_pointer -= 2;
-                mmu.write_word(self.stack_pointer, self.program_counter);
+                mmu.write_word(self.stack_pointer, self.program_counter + 1);
 
                 self.program_counter = 0x0038;
                 increment_program_counter = false;
@@ -1719,7 +1708,8 @@ impl CPU {
             0xD3 | 0xDB | 0xDD | 0xE3 |
             0xE4 | 0xEB | 0xEC | 0xED |
             0xF4 | 0xFC | 0xFD        => {
-                warn!("Tried to call unused OpCode {}", opcode);
+                error!("Tried to call unused OpCode {}", opcode);
+                exit(3);
             }
             _ => {
                 error!("Unknown OpCode {:#04X}", opcode);
@@ -1737,193 +1727,193 @@ impl CPU {
             0x00 => {
                 trace!("{:#04X}: RLC B. B:{:#04X}", opcode, self.read_register_b());
 
-                let result = self.rotate_left(self.read_register_b());
+                let result = self.rotate_left(self.read_register_b(), true);
                 self.write_register_b(result);
             },
             0x01 => {
                 trace!("{:#04X}: RLC C. C:{:#04X}", opcode, self.read_register_c());
 
-                let result = self.rotate_left(self.read_register_c());
+                let result = self.rotate_left(self.read_register_c(), true);
                 self.write_register_c(result);
             },
             0x02 => {
                 trace!("{:#04X}: RLC D. D:{:#04X}", opcode, self.read_register_d());
 
-                let result = self.rotate_left(self.read_register_d());
+                let result = self.rotate_left(self.read_register_d(), true);
                 self.write_register_d(result);
             },
             0x03 => {
                 trace!("{:#04X}: RLC E. E:{:#04X}", opcode, self.read_register_e());
 
-                let result = self.rotate_left(self.read_register_e());
+                let result = self.rotate_left(self.read_register_e(), true);
                 self.write_register_e(result);
             },
             0x04 => {
                 trace!("{:#04X}: RLC H. H:{:#04X}", opcode, self.read_register_h());
 
-                let result = self.rotate_left(self.read_register_h());
+                let result = self.rotate_left(self.read_register_h(), true);
                 self.write_register_h(result);
             },
             0x05 => {
                 trace!("{:#04X}: RLC L. L:{:#04X}", opcode, self.read_register_l());
 
-                let result = self.rotate_left(self.read_register_l());
+                let result = self.rotate_left(self.read_register_l(), true);
                 self.write_register_l(result);
             },
             0x06 => {
                 trace!("{:#04X}: RLC (HL). (HL):{:#04X}", opcode, mmu.read_byte(self.read_register_hl()));
 
-                let result = self.rotate_left(mmu.read_byte(self.read_register_hl()));
+                let result = self.rotate_left(mmu.read_byte(self.read_register_hl()), true);
                 mmu.write_byte(self.read_register_hl(), result);
             },
             0x07 => {
                 trace!("{:#04X}: RLC A. A:{:#04X}", opcode, self.read_register_a());
 
-                let result = self.rotate_left(self.read_register_a());
+                let result = self.rotate_left(self.read_register_a(), true);
                 self.write_register_a(result);
             },
             0x08 => {
                 trace!("{:#04X}: RRC B. B:{:#04X}", opcode, self.read_register_b());
 
-                let result = self.rotate_right(self.read_register_b());
+                let result = self.rotate_right(self.read_register_b(), true);
                 self.write_register_b(result);
             },
             0x09 => {
                 trace!("{:#04X}: RRC C. C:{:#04X}", opcode, self.read_register_c());
 
-                let result = self.rotate_right(self.read_register_c());
+                let result = self.rotate_right(self.read_register_c(), true);
                 self.write_register_c(result);
             },
             0x0A => {
                 trace!("{:#04X}: RRC D. D:{:#04X}", opcode, self.read_register_d());
 
-                let result = self.rotate_right(self.read_register_d());
+                let result = self.rotate_right(self.read_register_d(), true);
                 self.write_register_d(result);
             },
             0x0B => {
                 trace!("{:#04X}: RRC E. E:{:#04X}", opcode, self.read_register_e());
 
-                let result = self.rotate_right(self.read_register_e());
+                let result = self.rotate_right(self.read_register_e(), true);
                 self.write_register_e(result);
             },
             0x0C => {
                 trace!("{:#04X}: RRC H. H:{:#04X}", opcode, self.read_register_h());
 
-                let result = self.rotate_right(self.read_register_h());
+                let result = self.rotate_right(self.read_register_h(), true);
                 self.write_register_h(result);
             },
             0x0D => {
                 trace!("{:#04X}: RRC L. L:{:#04X}", opcode, self.read_register_l());
 
-                let result = self.rotate_right(self.read_register_l());
+                let result = self.rotate_right(self.read_register_l(), true);
                 self.write_register_l(result);
             },
             0x0E => {
                 trace!("{:#04X}: RRC (HL). (HL):{:#04X}", opcode, mmu.read_byte(self.read_register_hl()));
 
-                let result = self.rotate_right(mmu.read_byte(self.read_register_hl()));
+                let result = self.rotate_right(mmu.read_byte(self.read_register_hl()), true);
                 mmu.write_byte(self.read_register_hl(), result);
             },
             0x0F => {
                 trace!("{:#04X}: RRC A. A:{:#04X}", opcode, self.read_register_a());
 
-                let result = self.rotate_right(self.read_register_a());
+                let result = self.rotate_right(self.read_register_a(), true);
                 self.write_register_a(result);
             },
             0x10 => {
                 trace!("{:#04X}: RL B. B:{:#04X}", opcode, self.read_register_b());
 
-                let result = self.rotate_left_through_carry(self.read_register_b());
+                let result = self.rotate_left_through_carry(self.read_register_b(), true);
                 self.write_register_b(result);
             },
             0x11 => {
                 trace!("{:#04X}: RL C. C:{:#04X}", opcode, self.read_register_c());
 
-                let result = self.rotate_left_through_carry(self.read_register_c());
+                let result = self.rotate_left_through_carry(self.read_register_c(), true);
                 self.write_register_c(result);
             },
             0x12 => {
                 trace!("{:#04X}: RL D. D:{:#04X}", opcode, self.read_register_d());
 
-                let result = self.rotate_left_through_carry(self.read_register_d());
+                let result = self.rotate_left_through_carry(self.read_register_d(), true);
                 self.write_register_d(result);
             },
             0x13 => {
                 trace!("{:#04X}: RL E. E:{:#04X}", opcode, self.read_register_e());
 
-                let result = self.rotate_left_through_carry(self.read_register_e());
+                let result = self.rotate_left_through_carry(self.read_register_e(), true);
                 self.write_register_e(result);
             },
             0x14 => {
                 trace!("{:#04X}: RL H. H:{:#04X}", opcode, self.read_register_h());
 
-                let result = self.rotate_left_through_carry(self.read_register_h());
+                let result = self.rotate_left_through_carry(self.read_register_h(), true);
                 self.write_register_h(result);
             },
             0x15 => {
                 trace!("{:#04X}: RL L. L:{:#04X}", opcode, self.read_register_l());
 
-                let result = self.rotate_left_through_carry(self.read_register_l());
+                let result = self.rotate_left_through_carry(self.read_register_l(), true);
                 self.write_register_l(result);
             },
             0x16 => {
                 trace!("{:#04X}: RL (HL). (HL):{:#04X}", opcode, mmu.read_byte(self.read_register_hl()));
 
-                let result = self.rotate_left_through_carry(mmu.read_byte(self.read_register_hl()));
+                let result = self.rotate_left_through_carry(mmu.read_byte(self.read_register_hl()), true);
                 mmu.write_byte(self.read_register_hl(), result);
             },
             0x17 => {
                 trace!("{:#04X}: RL A. A:{:#04X}", opcode, self.read_register_a());
 
-                let result = self.rotate_left_through_carry(self.read_register_a());
+                let result = self.rotate_left_through_carry(self.read_register_a(), true);
                 self.write_register_a(result);
             },
             0x18 => {
                 trace!("{:#04X}: RR B. B:{:#04X}", opcode, self.read_register_b());
 
-                let result = self.rotate_right_through_carry(self.read_register_b());
+                let result = self.rotate_right_through_carry(self.read_register_b(), true);
                 self.write_register_b(result);
             },
             0x19 => {
                 trace!("{:#04X}: RR C. C:{:#04X}", opcode, self.read_register_c());
 
-                let result = self.rotate_right_through_carry(self.read_register_c());
+                let result = self.rotate_right_through_carry(self.read_register_c(), true);
                 self.write_register_c(result);
             },
             0x1A => {
                 trace!("{:#04X}: RR D. D:{:#04X}", opcode, self.read_register_d());
 
-                let result = self.rotate_right_through_carry(self.read_register_d());
+                let result = self.rotate_right_through_carry(self.read_register_d(), true);
                 self.write_register_d(result);
             },
             0x1B => {
                 trace!("{:#04X}: RR E. E:{:#04X}", opcode, self.read_register_e());
 
-                let result = self.rotate_right_through_carry(self.read_register_e());
+                let result = self.rotate_right_through_carry(self.read_register_e(), true);
                 self.write_register_e(result);
             },
             0x1C => {
                 trace!("{:#04X}: RR H. H:{:#04X}", opcode, self.read_register_h());
 
-                let result = self.rotate_right_through_carry(self.read_register_h());
+                let result = self.rotate_right_through_carry(self.read_register_h(), true);
                 self.write_register_h(result);
             },
             0x1D => {
                 trace!("{:#04X}: RR L. L:{:#04X}", opcode, self.read_register_l());
 
-                let result = self.rotate_right_through_carry(self.read_register_l());
+                let result = self.rotate_right_through_carry(self.read_register_l(), true);
                 self.write_register_l(result);
             },
             0x1E => {
                 trace!("{:#04X}: RR (HL). (HL):{:#04X}", opcode, mmu.read_byte(self.read_register_hl()));
 
-                let result = self.rotate_right_through_carry(mmu.read_byte(self.read_register_hl()));
+                let result = self.rotate_right_through_carry(mmu.read_byte(self.read_register_hl()), true);
                 mmu.write_byte(self.read_register_hl(), result);
             },
             0x1F => {
                 trace!("{:#04X}: RR A. A:{:#04X}", opcode, self.read_register_a());
 
-                let result = self.rotate_right_through_carry(self.read_register_a());
+                let result = self.rotate_right_through_carry(self.read_register_a(), true);
                 self.write_register_a(result);
             },
             0x20 => {
@@ -3245,28 +3235,7 @@ impl CPU {
     }
 
     fn increase_register_u8(&mut self, value: u8) -> u8 {
-        if ((value & 0xF).wrapping_add(1 & 0xF) & 0x10) == 0x10 {
-            self.set_flag_bit(HALF_CARRY_BIT);
-        } else {
-            self.unset_flag_bit(HALF_CARRY_BIT);
-        }
-
-        let result = value.wrapping_add(1);
-
-        if result == 0 {
-            self.set_flag_bit(ZERO_BIT);
-        } else {
-            self.unset_flag_bit(ZERO_BIT);
-        }
-
-        self.unset_flag_bit(SUBTRACTION_BIT);
-
-        return result;
-    }
-
-    fn increase_register_u16(&mut self, value: u16) -> u16 {
-
-        if ((value & 0xF).wrapping_add(1 & 0xF) & 0x10) == 0x10 {
+        if value & 0xF == 0xF {
             self.set_flag_bit(HALF_CARRY_BIT);
         } else {
             self.unset_flag_bit(HALF_CARRY_BIT);
@@ -3288,12 +3257,6 @@ impl CPU {
     fn decrease_register_u8(&mut self, value: u8) -> u8 {
         self.set_flag_bit(SUBTRACTION_BIT);
 
-        if ((value & 0xF).wrapping_sub(1 & 0xF) & 0x10) == 0x10 {
-            self.set_flag_bit(HALF_CARRY_BIT);
-        } else {
-            self.unset_flag_bit(HALF_CARRY_BIT);
-        }
-
         let result = value.wrapping_sub(1);
 
         if result == 0 {
@@ -3302,47 +3265,34 @@ impl CPU {
             self.unset_flag_bit(ZERO_BIT);
         }
 
-        return result;
-    }
-
-    fn decrease_register_u16(&mut self, value: u16) -> u16 {
-        self.set_flag_bit(SUBTRACTION_BIT);
-
-        if ((value & 0xF).wrapping_sub(1 & 0xF) & 0x10) == 0x10 {
+        if result & 0x0F == 0x0F {
             self.set_flag_bit(HALF_CARRY_BIT);
         } else {
             self.unset_flag_bit(HALF_CARRY_BIT);
         }
 
-        let result = value.wrapping_sub(1);
-
-        if result == 0 {
-            self.set_flag_bit(ZERO_BIT);
-        } else {
-            self.unset_flag_bit(ZERO_BIT);
-        }
-
         return result;
     }
 
-    fn rotate_left(&mut self, value: u8) -> u8 {
-        // Unset flag bits
+    fn rotate_left(&mut self, value: u8, is_prefixed: bool) -> u8 {
         self.unset_flag_bit(SUBTRACTION_BIT);
         self.unset_flag_bit(HALF_CARRY_BIT);
 
-        let mut result;
-        if self.most_significant_bit(value) > 0 {
+        let mut result = value << 1;
+        if self.most_significant_bit(value) != 0 {
             self.set_flag_bit(CARRY_BIT);
-            result = value << 1;
             result |= 0x1;
         } else {
             self.unset_flag_bit(CARRY_BIT);
-            result = value << 1;
         }
 
-        // Set zero bit
-        if result == 0 {
-            self.set_flag_bit(ZERO_BIT);
+        if is_prefixed {
+            // Set zero bit
+            if result == 0 {
+                self.set_flag_bit(ZERO_BIT);
+            } else {
+                self.unset_flag_bit(ZERO_BIT);
+            }
         } else {
             self.unset_flag_bit(ZERO_BIT);
         }
@@ -3350,7 +3300,7 @@ impl CPU {
         return result;
     }
 
-    fn rotate_left_through_carry(&mut self, value: u8) -> u8 {
+    fn rotate_left_through_carry(&mut self, value: u8, is_prefixed: bool) -> u8 {
         // Store carry flag
         let carry = self.read_flag(CARRY_BIT);
 
@@ -3358,7 +3308,7 @@ impl CPU {
         self.unset_flag_bit(SUBTRACTION_BIT);
         self.unset_flag_bit(HALF_CARRY_BIT);
 
-        if self.most_significant_bit(value) > 0 {
+        if self.most_significant_bit(value) != 0 {
             self.set_flag_bit(CARRY_BIT);
         } else {
             self.unset_flag_bit(CARRY_BIT);
@@ -3366,9 +3316,13 @@ impl CPU {
 
         let result = value << 1 | carry;
 
-        // Set zero bit
-        if result == 0 {
-            self.set_flag_bit(ZERO_BIT);
+        if is_prefixed {
+            // Set zero bit
+            if result == 0 {
+                self.set_flag_bit(ZERO_BIT);
+            } else {
+                self.unset_flag_bit(ZERO_BIT);
+            }
         } else {
             self.unset_flag_bit(ZERO_BIT);
         }
@@ -3376,24 +3330,25 @@ impl CPU {
         return result;
     }
 
-    fn rotate_right(&mut self, value: u8) -> u8 {
-        // Unset flag bits
+    fn rotate_right(&mut self, value: u8, is_prefixed: bool) -> u8 {
         self.unset_flag_bit(SUBTRACTION_BIT);
         self.unset_flag_bit(HALF_CARRY_BIT);
 
-        let mut result;
-        if self.least_significant_bit(value) > 0 {
+        let mut result = value >> 1;
+        if self.least_significant_bit(value) != 0 {
             self.set_flag_bit(CARRY_BIT);
-            result = value >> 1;
             result |= 0x80;
         } else {
             self.unset_flag_bit(CARRY_BIT);
-            result = value >> 1;
         }
 
-        // Set zero bit
-        if result == 0 {
-            self.set_flag_bit(ZERO_BIT);
+        if is_prefixed {
+            // Set zero bit
+            if result == 0 {
+                self.set_flag_bit(ZERO_BIT);
+            } else {
+                self.unset_flag_bit(ZERO_BIT);
+            }
         } else {
             self.unset_flag_bit(ZERO_BIT);
         }
@@ -3401,7 +3356,7 @@ impl CPU {
         return result;
     }
 
-    fn rotate_right_through_carry(&mut self, value: u8) -> u8 {
+    fn rotate_right_through_carry(&mut self, value: u8, is_prefixed: bool) -> u8 {
         // Store carry flag
         let carry;
         if self.read_flag(CARRY_BIT) == 1 {
@@ -3414,7 +3369,7 @@ impl CPU {
         self.unset_flag_bit(SUBTRACTION_BIT);
         self.unset_flag_bit(HALF_CARRY_BIT);
 
-        if self.least_significant_bit(value) > 0 {
+        if self.least_significant_bit(value) != 0 {
             self.set_flag_bit(CARRY_BIT);
         } else {
             self.unset_flag_bit(CARRY_BIT);
@@ -3422,9 +3377,13 @@ impl CPU {
 
         let result = value >> 1 | carry;
 
-        // Set zero bit
-        if result == 0 {
-            self.set_flag_bit(ZERO_BIT);
+        if is_prefixed {
+            // Set zero bit
+            if result == 0 {
+                self.set_flag_bit(ZERO_BIT);
+            } else {
+                self.unset_flag_bit(ZERO_BIT);
+            }
         } else {
             self.unset_flag_bit(ZERO_BIT);
         }
@@ -3535,32 +3494,31 @@ impl CPU {
     }
 
     fn add_u8_and_carry_to_a(&mut self, value: u8) {
-        let a = self.read_register_a();
         let carry = self.read_flag(CARRY_BIT);
-        let value_carry = value + carry;
-        let (result, overflow) = a.overflowing_add(value_carry);
+        let result_u16: u16 = self.read_register_a() as u16 + value as u16 + carry as u16;
+        let result_u8 = self.read_register_a().wrapping_add(value).wrapping_add(carry);
 
-        self.unset_flag_bit(SUBTRACTION_BIT);
-
-        if result == 0 {
-            self.set_flag_bit(ZERO_BIT);
-        } else {
-            self.unset_flag_bit(ZERO_BIT);
-        }
-
-        if overflow {
+        if result_u16 > 0xFF {
             self.set_flag_bit(CARRY_BIT);
         } else {
             self.unset_flag_bit(CARRY_BIT);
         }
 
-        if ((a & 0xF).wrapping_add(value_carry & 0xF) & 0x10) == 0x10 {
+        self.unset_flag_bit(SUBTRACTION_BIT);
+
+        if result_u8 == 0 {
+            self.set_flag_bit(ZERO_BIT);
+        } else {
+            self.unset_flag_bit(ZERO_BIT);
+        }
+
+        if (self.read_register_a() & 0x0F) + (value & 0x0F) + carry > 0x0F {
             self.set_flag_bit(HALF_CARRY_BIT);
         } else {
             self.unset_flag_bit(HALF_CARRY_BIT);
         }
 
-        self.write_register_a(result);
+        self.write_register_a(result_u8);
     }
 
     fn add_u16_to_hl(&mut self, value: u16) {
@@ -3615,22 +3573,22 @@ impl CPU {
     fn subtract_u8_and_carry_from_a(&mut self, value: u8) {
         let a = self.read_register_a();
         let carry = self.read_flag(CARRY_BIT);
-        let value_carry: u8 = value + carry;
-        let (result, overflow) = a.overflowing_sub(value_carry);
+        let result_i16: i16 = a as i16 - value as i16 - carry as i16;
+        let result_u8: u8 = a.wrapping_sub(value).wrapping_sub(carry);
 
-        if overflow {
+        if result_i16 < 0 {
             self.set_flag_bit(CARRY_BIT);
         } else {
             self.unset_flag_bit(CARRY_BIT);
         }
 
-        if ((a & 0xF).wrapping_sub(value_carry & 0xF) & 0x10) == 0x10 {
+        if ((a & 0xF) as i8 - (value & 0xF) as i8 - carry as i8) < 0 {
             self.set_flag_bit(HALF_CARRY_BIT);
         } else {
             self.unset_flag_bit(HALF_CARRY_BIT);
         }
 
-        if result == 0 {
+        if result_u8 == 0 {
             self.set_flag_bit(ZERO_BIT);
         } else {
             self.unset_flag_bit(ZERO_BIT);
@@ -3638,7 +3596,7 @@ impl CPU {
 
         self.set_flag_bit(SUBTRACTION_BIT);
 
-        self.write_register_a(result);
+        self.write_register_a(result_u8);
     }
 
     fn and_with_register_a(&mut self, value: u8) {

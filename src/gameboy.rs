@@ -1,7 +1,7 @@
 use std::process::exit;
 
 use crate::cartridge::Cartridge;
-use crate::cpu::CPU;
+use crate::cpu::{CPU, VBLANK_INTERRUPT_BIT, LCD_INTERRUPT_BIT, TIMER_INTERRUPT_BIT, SERIAL_INTERRUPT_BIT, JOYPAD_INTERRUPT_BIT};
 use crate::mmu::MMU;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
@@ -54,11 +54,46 @@ impl GameBoy {
 
                 self.cpu.tick(&mut self.mmu);
                 self.mmu.gpu.tick(self.cpu.get_clock_m());
+
+                // Interrupts - Check if master enable is on, check if any interrupts are enabled, check if any interrupts have been fired (0xFF0F)
+                let interrupt_enable_register = self.mmu.interrupt_enable_register;
+                let interrupt_flags_register = self.mmu.read_byte(0xFF0F);
+                if self.cpu.interrupt_master_enable && interrupt_enable_register > 0 && interrupt_flags_register > 0 {
+                    // Vertical Blank Interrupt
+                    if interrupt_enable_register & VBLANK_INTERRUPT_BIT == 1 && interrupt_flags_register & VBLANK_INTERRUPT_BIT == 1 {
+                        self.mmu.write_byte(0xFF0F, interrupt_flags_register & (255 - VBLANK_INTERRUPT_BIT));
+                        self.cpu.trigger_interrupt(&mut self.mmu, VBLANK_INTERRUPT_BIT);
+                    }
+
+                    // LCD Interrupt
+                    if interrupt_enable_register & LCD_INTERRUPT_BIT == 2 && interrupt_flags_register & LCD_INTERRUPT_BIT == 2 {
+                        self.mmu.write_byte(0xFF0F, interrupt_flags_register & (255 - LCD_INTERRUPT_BIT));
+                        self.cpu.trigger_interrupt(&mut self.mmu, LCD_INTERRUPT_BIT);
+                    }
+
+                    // Timer Interrupt
+                    if interrupt_enable_register & TIMER_INTERRUPT_BIT == 4 && interrupt_flags_register & TIMER_INTERRUPT_BIT == 4 {
+                        self.mmu.write_byte(0xFF0F, interrupt_flags_register & (255 - TIMER_INTERRUPT_BIT));
+                        self.cpu.trigger_interrupt(&mut self.mmu, TIMER_INTERRUPT_BIT);
+                    }
+
+                    // Serial Interrupt
+                    if interrupt_enable_register & SERIAL_INTERRUPT_BIT == 8 && interrupt_flags_register & SERIAL_INTERRUPT_BIT == 8 {
+                        self.mmu.write_byte(0xFF0F, interrupt_flags_register & (255 - SERIAL_INTERRUPT_BIT));
+                        self.cpu.trigger_interrupt(&mut self.mmu, SERIAL_INTERRUPT_BIT);
+                    }
+
+                    // Joypad Interrupt
+                    if interrupt_enable_register & JOYPAD_INTERRUPT_BIT == 16 && interrupt_flags_register & JOYPAD_INTERRUPT_BIT == 16 {
+                        self.mmu.write_byte(0xFF0F, interrupt_flags_register & (255 - JOYPAD_INTERRUPT_BIT));
+                        self.cpu.trigger_interrupt(&mut self.mmu, JOYPAD_INTERRUPT_BIT);
+                    }
+                }
             }
 
             // TODO - proper processing speed
             // microseconds not millis
-//            thread::sleep(time::Duration::from_millis(10));
+            // thread::sleep(time::Duration::from_millis(10));
         }
     }
 

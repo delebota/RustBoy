@@ -8,13 +8,12 @@ const SUBTRACTION_BIT: u8 = 0x40;
 const HALF_CARRY_BIT: u8  = 0x20;
 const CARRY_BIT: u8       = 0x10;
 
-//TODO
 // Interrupts
-//const VBLANK_INTERRUPT_BIT: u8 =  0x01;
-//const LCD_INTERRUPT_BIT: u8    = (0x01 << 1);
-//const TIMER_INTERRUPT_BIT: u8  = (0x01 << 2);
-//const SERIAL_INTERRUPT_BIT: u8 = (0x01 << 3);
-//const JOYPAD_INTERRUPT_BIT: u8 = (0x01 << 4);
+pub const VBLANK_INTERRUPT_BIT: u8 = 0x01;
+pub const LCD_INTERRUPT_BIT: u8    = 0x02;
+pub const TIMER_INTERRUPT_BIT: u8  = 0x04;
+pub const SERIAL_INTERRUPT_BIT: u8 = 0x08;
+pub const JOYPAD_INTERRUPT_BIT: u8 = 0x10;
 
 const OPERATION_BYTES: [u16; 256] = [
 //  0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
@@ -101,7 +100,7 @@ pub struct CPU {
     pub program_counter: u16,
     pub skip_bios: bool,
     pub clock: Clock,
-    interrupt_master_enable: bool
+    pub interrupt_master_enable: bool
 }
 
 impl CPU {
@@ -3871,5 +3870,44 @@ impl CPU {
         }
 
         exit(1);
+    }
+
+    pub fn trigger_interrupt(&mut self, mmu: &mut MMU, bit: u8) {
+        // Disable interrupts
+        self.interrupt_master_enable = false;
+
+        // Push stack pointer
+        self.stack_pointer -= 2;
+        mmu.write_word(self.stack_pointer, self.program_counter);
+
+        // Jump
+        match bit {
+            VBLANK_INTERRUPT_BIT => {
+                //TODO - trace
+                debug!("VBlank Interrupt Fired");
+                self.program_counter =  0x0040;
+            },
+            LCD_INTERRUPT_BIT => {
+                //TODO - trace
+                debug!("LCD Interrupt Fired");
+                self.program_counter =  0x0048;
+            },
+            TIMER_INTERRUPT_BIT => {
+                //TODO - trace
+                debug!("Timer Interrupt Fired");
+                self.program_counter =  0x0050;
+            },
+            SERIAL_INTERRUPT_BIT => {
+                //TODO - trace
+                debug!("Serial Interrupt Fired");
+                self.program_counter =  0x0058;
+            },
+            JOYPAD_INTERRUPT_BIT => {
+                //TODO - trace
+                debug!("Joypad Interrupt Fired");
+                self.program_counter =  0x0060;
+            },
+            _ => {}
+        }
     }
 }

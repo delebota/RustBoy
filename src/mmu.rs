@@ -6,27 +6,20 @@ use std::process::exit;
 use crate::cartridge::{ROM_ONLY, MBC1, MBC1_RAM, MBC1_RAM_BATT};
 use crate::gpu::GPU;
 
-//TODO
-//#define SET_INT_VBLANK(x)   intflags = ((intflags & 0xFE) | x) //Set bit 0
-//#define SET_INT_LCDSTAT(x)  intflags = ((intflags & 0xFD) | (x << 1)) //Set bit 1
-//#define SET_INT_TIMER(x)    intflags = ((intflags & 0xFB) | (x << 2))
-//#define SET_INT_SERIAL(x)   intflags = ((intflags & 0xF7) | (x << 3))
-//#define SET_INT_JOYPAD(x)   intflags = ((intflags & 0xEF) | (x << 4))
-
 pub struct MMU {
     pub gpu: GPU,
     bios: [u8; 256],
-    rom_banks: Box<[Vec<u8>]>,     // 16k ROM Banks,   0x0000 - 0x7FFF , ROM Bank 0 + switchable ROM bank
-//  vram: [u8; 8192],              // 8k Video RAM,    0x8000 - 0x9FFF , Video RAM, stored in GPU
-    eram: [u8; 8192],              // 8k External RAM, 0xA000 - 0xBFFF , switchable RAM bank
-    wram: [u8; 8192],              // 8k Working RAM,  0xC000 - 0xDFFF , internal RAM
-                                   // 8k Working RAM,  0xE000 - 0xFDFF , copy of internal RAM
-//  oam:  [u8;  160],              // Object Attr Mem, 0xFE00 - 0xFE9F , Sprites, stored in GPU
-                                   // Empty            0xFEA0 - 0xFEFF
-    io_ports: [u8; 64],            // I/O Ports        0xFF00 - 0xFF3F , I/O Ports
-                                   // Empty            0xFF40 - 0xFF7F , GPU Registers
-    zram: [u8;  127],              // Zero Page RAM,   0xFF80 - 0xFFFE
-    interrupt_enable_register: u8, // Int Enable Reg,  0xFFFF
+    rom_banks: Box<[Vec<u8>]>,          // 16k ROM Banks,   0x0000 - 0x7FFF , ROM Bank 0 + switchable ROM bank
+//  vram: [u8; 8192],                   // 8k Video RAM,    0x8000 - 0x9FFF , Video RAM, stored in GPU
+    eram: [u8; 8192],                   // 8k External RAM, 0xA000 - 0xBFFF , switchable RAM bank
+    wram: [u8; 8192],                   // 8k Working RAM,  0xC000 - 0xDFFF , internal RAM
+                                        // 8k Working RAM,  0xE000 - 0xFDFF , copy of internal RAM
+//  oam:  [u8;  160],                   // Object Attr Mem, 0xFE00 - 0xFE9F , Sprites, stored in GPU
+                                        // Empty            0xFEA0 - 0xFEFF
+    io_ports: [u8; 64],                 // I/O Ports        0xFF00 - 0xFF3F , I/O Ports
+                                        // Empty            0xFF40 - 0xFF7F , GPU Registers
+    zram: [u8;  127],                   // Zero Page RAM,   0xFF80 - 0xFFFE
+    pub interrupt_enable_register: u8,  // Int Enable Reg,  0xFFFF          , Interrupt Enable/Disable Register
 
     active_rom_bank: u8,
     rom_size: u8,
@@ -147,12 +140,12 @@ impl MMU {
                             }
                         },
                         0xF => { // I/O Ports, Zero Page RAM, Int Enable Register
-                            if address == 0xFFFF { // Int Enable Register
-                                return self.interrupt_enable_register;
-                            }
-
                             if address == 0xFF00 { // Joypad
                                 return self.gpu.input.read();
+                            }
+
+                            if address == 0xFFFF { // Int Enable Register
+                                return self.interrupt_enable_register;
                             }
 
                             match addr_nibble_3 {
@@ -249,13 +242,13 @@ impl MMU {
                             }
                         },
                         0xF => { // I/O Ports, Zero Page RAM, Int Enable Register
+                            if address == 0xFF00 { // Joypad
+                                self.gpu.input.write(value);
+                            }
+
                             if address == 0xFFFF { // Int Enable Register
                                 self.interrupt_enable_register = value;
                                 return;
-                            }
-
-                            if address == 0xFF00 { // Joypad
-                                self.gpu.input.write(value);
                             }
 
                             match addr_nibble_3 {

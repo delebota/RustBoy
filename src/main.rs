@@ -38,7 +38,7 @@ fn main() {
     let rom_path= matches.value_of("rom").unwrap_or("");
     let debug = matches.value_of("debug").unwrap_or("false");
     if debug.eq_ignore_ascii_case("true") {
-        gameboy.mmu.gpu.vram_debug = true;
+        gameboy.mmu.gpu.debug = true;
         gameboy.mmu.gpu.vram_debug_canvas.window_mut().show();
     }
     let paused = matches.value_of("pause").unwrap_or("false");

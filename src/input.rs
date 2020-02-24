@@ -15,4 +15,16 @@ impl Input {
             keys
         }
     }
+
+    pub fn read(&self) -> u8 {
+        match self.column {
+            0x10 => {return self.keys[0]},
+            0x20 => {return self.keys[1]},
+            _    => {return 0}
+        }
+    }
+
+    pub fn write(&mut self, value: u8) {
+        self.column = value & 0x30;
+    }
 }

@@ -21,7 +21,7 @@ pub struct MMU {
     eram: [u8; 8192],              // 8k External RAM, 0xA000 - 0xBFFF , switchable RAM bank
     wram: [u8; 8192],              // 8k Working RAM,  0xC000 - 0xDFFF , internal RAM
                                    // 8k Working RAM,  0xE000 - 0xFDFF , copy of internal RAM
-    oam:  [u8;  160],              // Object Attr Mem, 0xFE00 - 0xFE9F
+//  oam:  [u8;  160],              // Object Attr Mem, 0xFE00 - 0xFE9F , Sprites, stored in GPU
                                    // Empty            0xFEA0 - 0xFEFF
     io_ports: [u8; 64],            // I/O Ports        0xFF00 - 0xFF3F , I/O Ports
                                    // Empty            0xFF40 - 0xFF7F , GPU Registers
@@ -44,7 +44,6 @@ impl MMU {
         let rom_banks = vec![vec![0u8; 16384]; 128].into_boxed_slice();
         let eram = [0; 8192];
         let wram = [0; 8192];
-        let oam = [0; 160];
         let io_ports = [0; 64];
         let zram = [0; 127];
         let interrupt_enable_register = 0;
@@ -60,7 +59,6 @@ impl MMU {
             rom_banks,
             eram,
             wram,
-            oam,
             io_ports,
             zram,
             interrupt_enable_register,
@@ -142,7 +140,7 @@ impl MMU {
                         },
                         0xE => { // Object Attr Memory
                             if address < 0xFEA0 {
-                                return self.oam[(address & 0xFF) as usize];
+                                return self.gpu.read_oam((address & 0xFF) as u8);
                             } else {
                                 warn!("Tried to read a byte from unused address {:#X}, returned 0", address);
                                 return 0;
@@ -154,14 +152,7 @@ impl MMU {
                             }
 
                             if address == 0xFF00 { // Joypad
-                                //TODO - input handle
-                                // match self.gpu.input.column {
-                                //     0x10 => return self.gpu.input.keys[0],
-                                //     0x20 => return self.gpu.input.keys[1],
-                                //     _ => {
-                                        return 0x0F;
-                                //     }
-                                // }
+                                return self.gpu.input.read();
                             }
 
                             match addr_nibble_3 {
@@ -249,7 +240,8 @@ impl MMU {
                         },
                         0xE => { // Object Attr Memory
                             if address < 0xFEA0 {
-                                self.oam[(address & 0xFF) as usize] = value;
+                                self.gpu.write_oam((address & 0xFF) as u8, value);
+                                self.gpu.build_object_data(address - 0xFE00, value);
                                 return;
                             } else {
                                 trace!("Tried to write to an unused address {:#X}", address);
@@ -263,7 +255,7 @@ impl MMU {
                             }
 
                             if address == 0xFF00 { // Joypad
-                                self.gpu.input.column = value & 0x30;
+                                self.gpu.input.write(value);
                             }
 
                             match addr_nibble_3 {

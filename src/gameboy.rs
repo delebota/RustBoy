@@ -3,6 +3,8 @@ use std::process::exit;
 use crate::cartridge::Cartridge;
 use crate::cpu::CPU;
 use crate::mmu::MMU;
+use sdl2::event::Event;
+use sdl2::keyboard::Keycode;
 
 pub struct GameBoy {
     pub cpu: CPU,
@@ -24,6 +26,32 @@ impl GameBoy {
 
         loop {
             if !self.is_paused {
+                for event in self.mmu.gpu.event_pump.poll_iter() {
+                    match event {
+                        Event::Quit    { timestamp } => exit(2),
+                        Event::KeyDown { keycode: Some(Keycode::Escape), ..} => exit(2),
+
+                        Event::KeyDown { keycode: Some(Keycode::Right), ..} => {  self.mmu.gpu.input.keys[1] &= 0xE},
+                        Event::KeyDown { keycode: Some(Keycode::Left), ..} => {   self.mmu.gpu.input.keys[1] &= 0xD},
+                        Event::KeyDown { keycode: Some(Keycode::Up), ..} => {     self.mmu.gpu.input.keys[1] &= 0xB},
+                        Event::KeyDown { keycode: Some(Keycode::Down), ..} => {   self.mmu.gpu.input.keys[1] &= 0x7},
+                        Event::KeyDown { keycode: Some(Keycode::Z), ..} => {      self.mmu.gpu.input.keys[0] &= 0xE},
+                        Event::KeyDown { keycode: Some(Keycode::X), ..} => {      self.mmu.gpu.input.keys[0] &= 0xD},
+                        Event::KeyDown { keycode: Some(Keycode::Space), ..} => {  self.mmu.gpu.input.keys[0] &= 0xB},
+                        Event::KeyDown { keycode: Some(Keycode::KpEnter), ..} => {self.mmu.gpu.input.keys[0] &= 0x7},
+
+                        Event::KeyUp   { keycode: Some(Keycode::Right), ..} => {  self.mmu.gpu.input.keys[1] |= 0x1},
+                        Event::KeyUp   { keycode: Some(Keycode::Left), ..} => {   self.mmu.gpu.input.keys[1] |= 0x2},
+                        Event::KeyUp   { keycode: Some(Keycode::Up), ..} => {     self.mmu.gpu.input.keys[1] |= 0x4},
+                        Event::KeyUp   { keycode: Some(Keycode::Down), ..} => {   self.mmu.gpu.input.keys[1] |= 0x8},
+                        Event::KeyUp   { keycode: Some(Keycode::Z), ..} => {      self.mmu.gpu.input.keys[0] |= 0x1},
+                        Event::KeyUp   { keycode: Some(Keycode::X), ..} => {      self.mmu.gpu.input.keys[0] |= 0x2},
+                        Event::KeyUp   { keycode: Some(Keycode::Space), ..} => {  self.mmu.gpu.input.keys[0] |= 0x4},
+                        Event::KeyUp   { keycode: Some(Keycode::KpEnter), ..} => {self.mmu.gpu.input.keys[0] |= 0x8},
+                        _ => {}
+                    }
+                }
+
                 self.cpu.tick(&mut self.mmu);
                 self.mmu.gpu.tick(self.cpu.get_clock_m());
             }

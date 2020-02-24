@@ -14,13 +14,48 @@ pub const STATE_VBLANK: u8    = 1;
 pub const STATE_OAM_READ: u8  = 2;
 pub const STATE_VRAM_READ: u8 = 3;
 
+#[derive(Copy, Clone)]
+struct Sprite {
+    x: i16,
+    y: i16,
+    tile: u8,
+    palette: u8,
+    xflip: bool,
+    yflip: bool,
+    priority: u8
+}
+
+impl Sprite {
+    pub fn new() -> Sprite {
+        let x = -8;
+        let y = -16;
+        let tile = 0;
+        let palette = 0;
+        let xflip = false;
+        let yflip = false;
+        let priority = 0;
+
+        Sprite {
+            x,
+            y,
+            tile,
+            palette,
+            xflip,
+            yflip,
+            priority
+        }
+    }
+}
+
 pub struct GPU {
     sdl_context: Sdl,
     canvas: Canvas<Window>,
     pub vram_debug_canvas: Canvas<Window>,
-    event_pump: EventPump,
+    pub event_pump: EventPump,
     pub input: Input,
     vram: [u8; 8192],
+    oam:  [u8;  160],
+    object_data: [Sprite; 40],
     tileset: Box<[Vec<Vec<u8>>]>,
     state: u8,
     state_clock: u32,
@@ -39,7 +74,7 @@ pub struct GPU {
     gpu_registers: [u8; 52],
     palette_reference: [Color; 4],
     lock_vram: bool,
-    pub vram_debug: bool
+    pub debug: bool
 }
 
 impl GPU {
@@ -56,6 +91,8 @@ impl GPU {
         let event_pump = sdl_context.event_pump().unwrap();
         let input = Input::new();
         let vram = [0; 8192];
+        let oam = [0; 160];
+        let object_data = [Sprite::new(); 40];
         let tileset = vec![vec![vec![0u8; 8]; 8]; 384].into_boxed_slice();
         let state = STATE_OAM_READ;
         let state_clock = 0;
@@ -77,7 +114,7 @@ impl GPU {
         // B&W Palette - GameBoy Pocket
         // let palette_reference = [Color::RGB(255,255,255), Color::RGB(192,192,192), Color::RGB(96,96,96), Color::RGB(0,0,0)];
         let lock_vram = false;
-        let vram_debug = false;
+        let debug = false;
 
         GPU {
             sdl_context,
@@ -86,6 +123,8 @@ impl GPU {
             event_pump,
             input,
             vram,
+            oam,
+            object_data,
             tileset,
             state,
             state_clock,
@@ -104,7 +143,7 @@ impl GPU {
             gpu_registers,
             palette_reference,
             lock_vram,
-            vram_debug
+            debug
         }
     }
 
@@ -148,8 +187,6 @@ impl GPU {
                 return self.window_x;
             },
             _ => {
-//                warn!("Tried to read GPU register {:#06X}. Unknown. Returning 0", address);
-//                return 0;
                 return self.gpu_registers[(address - 0xFF4C) as usize];
             }
         }
@@ -218,8 +255,6 @@ impl GPU {
                 return;
             },
             _ => {
-//                warn!("Tried to write to GPU register {:#06X}. Unknown or not yet implemented. Returning without writing", address);
-//                return;
                 self.gpu_registers[(address - 0xFF4C) as usize];
                 return;
             }
@@ -261,7 +296,7 @@ impl GPU {
 
                     self.tileset[tile_index as usize][row_index as usize][pixel_index as usize] = pixel_value;
 
-                    if self.vram_debug {
+                    if self.debug {
                         // If VRAM Debugging - draw update
                         self.vram_debug_canvas.set_draw_color(self.palette_reference[pixel_value as usize]);
                         let result = self.vram_debug_canvas.draw_point(Point::new((((tile_index % 32) * 8) + pixel_index as u16) as i32, (((tile_index / 32) * 8) + row_index) as i32));
@@ -272,7 +307,7 @@ impl GPU {
                     }
                 }
             } else {
-                if self.vram_debug {
+                if self.debug {
                     // If VRAM Debugging - draw update
                     self.vram_debug_canvas.set_draw_color(Color::RGB(255 - value, 255 - value, 255 - value));
                     let result = self.vram_debug_canvas.draw_line(Point::new(((index % 32) * 8) as i32, (index / 32) as i32), Point::new((((index % 32) * 8) + 8) as i32, (index / 32) as i32));
@@ -284,70 +319,145 @@ impl GPU {
             }
         }
 
-        if self.vram_debug {
+        if self.debug {
             // If VRAM Debugging - update the canvas
             self.vram_debug_canvas.present();
         }
     }
 
+    pub fn read_oam(&self, address: u8) -> u8 {
+        return self.oam[address as usize];
+    }
+
+    pub fn write_oam(&mut self, address: u8, value: u8) {
+        self.oam[address as usize] = value;
+    }
+
     fn render_scanline(&mut self) {
-        let mut tilemap_base: u16 = 0x1800;
-        if self.get_background_tilemap() == 1 {
-            tilemap_base = 0x1C00;
-        }
+        // Scanline data, for use by sprite renderer
+        let mut scan_row: [u8; 160] = [0; 160];
 
-        let offset: u16 = (((self.render_line as u16 + self.scroll_y as u16) & 255) >> 3) << 5;
-        let offset_base: u16 = tilemap_base + offset;
-
-        let y: u8 = self.render_line.wrapping_add(self.scroll_y) & 7;
-
-        for x in 0..160 {
-            let mut t_index: u16 = 0;
-            if self.get_background_tileset() == 1 {
-                t_index = self.vram[(offset_base + (x / 8)) as usize] as u16;
-            } else {
-//                warn!("Using Tileset 0");
+        // Render background if enabled
+        if self.get_background_status() == 1 {
+            let mut tilemap_base: u16 = 0x1800;
+            if self.get_background_tilemap() == 1 {
+                tilemap_base = 0x1C00;
             }
 
-            let color = self.palette_reference[self.palette[self.tileset[t_index as usize][y as usize][(x % 8) as usize] as usize] as usize];
+            let offset: u16 = (((self.render_line as u16 + self.scroll_y as u16) & 255) >> 3) << 5;
+            let offset_base: u16 = tilemap_base + offset;
 
-            self.canvas.set_draw_color(color);
-            let result = self.canvas.draw_point(Point::new(x as i32, self.render_line as i32));
-            if result.is_err() {
-                error!("Error: {:?}", result.err());
-                exit(1);
+            let y: u8 = self.render_line.wrapping_add(self.scroll_y) & 7;
+
+            for x in 0..160 {
+                let mut t_index: u16 = 0;
+                if self.get_background_tileset() == 1 {
+                    t_index = self.vram[(offset_base + (x / 8)) as usize] as u16;
+                } else {
+                    //  warn!("Using Tileset 0");
+                }
+
+                let color = self.palette_reference[self.palette[self.tileset[t_index as usize][y as usize][(x % 8) as usize] as usize] as usize];
+
+                scan_row[x as usize] = self.tileset[t_index as usize][y as usize][(x % 8) as usize];
+
+                self.canvas.set_draw_color(color);
+                let result = self.canvas.draw_point(Point::new(x as i32, self.render_line as i32));
+                if result.is_err() {
+                    error!("Error: {:?}", result.err());
+                    exit(1);
+                }
+            }
+        }
+
+        // Render sprites if enabled
+        if self.get_sprite_status() == 1 {
+            for i in 0..40 {
+                let object = self.object_data[i];
+
+                // TODO - Is this right?
+                if object.y <= self.render_line as i16 && (object.y + 8) > self.render_line as i16 {
+                    let palette = object.palette;
+
+                    for x in 0..8 {
+                        let x_index;
+                        if object.xflip {
+                            x_index = 7 - x;
+                        } else {
+                            x_index = x;
+                        }
+
+                        let tile;
+                        if object.yflip {
+                            tile = self.tileset[object.tile as usize][(7 - (self.render_line - object.y as u8)) as usize][x_index as usize];
+                        } else {
+                            tile = self.tileset[object.tile as usize][(self.render_line - object.y as u8) as usize][x_index as usize];
+                        }
+
+                        if object.x + x >= 0 && object.x + x < 160 && tile != 0 && (object.priority == 1) || scan_row[(object.x + x) as usize] == 0 {
+                            let color = self.palette_reference[self.palette[tile as usize] as usize];
+                            self.canvas.set_draw_color(color);
+
+                            let result = self.canvas.draw_point(Point::new(object.x as i32 + x as i32, self.render_line as i32));
+                            if result.is_err() {
+                                error!("Error: {:?}", result.err());
+                                exit(1);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn build_object_data(&mut self, address: u16, value: u8) {
+        let object = address >> 2;
+        if object < 40 {
+            match address & 3 {
+                0 => {
+                    self.object_data[object as usize].y = value as i16 - 16;
+                    return;
+                },
+                1 => {
+                    self.object_data[object as usize].x = value as i16 - 8;
+                    return;
+                },
+                2 => {
+                    self.object_data[object as usize].tile = value;
+                    return;
+                },
+                3 => {
+                    if value & 0x10 == 0x10 {
+                        self.object_data[object as usize].palette = 1;
+                    } else {
+                        self.object_data[object as usize].palette = 0;
+                    }
+
+                    if value & 0x20 == 0x20 {
+                        self.object_data[object as usize].xflip = true;
+                    } else {
+                        self.object_data[object as usize].xflip = false;
+                    }
+
+                    if value & 0x40 == 0x40 {
+                        self.object_data[object as usize].yflip = true;
+                    } else {
+                        self.object_data[object as usize].yflip = false;
+                    }
+
+                    if value & 0x80 == 0x80 {
+                        self.object_data[object as usize].priority = 1;
+                    } else {
+                        self.object_data[object as usize].priority = 0;
+                    }
+                    return;
+                },
+                _ => {}
             }
         }
     }
 
     pub fn tick(&mut self, clock_m: u32) {
-        // // TODO - Handle this properly somewhere else...
-        // for event in self.event_pump.poll_iter() {
-        //     match event {
-        //         Event::Quit    { timestamp } => exit(2),
-        //         Event::KeyDown { keycode: Some(Keycode::Escape), ..} => exit(2),
-        //
-        //         Event::KeyDown { keycode: Some(Keycode::Right), ..} => {  self.input.keys[1] &= 0xE},
-        //         Event::KeyDown { keycode: Some(Keycode::Left), ..} => {   self.input.keys[1] &= 0xD},
-        //         Event::KeyDown { keycode: Some(Keycode::Up), ..} => {     self.input.keys[1] &= 0xB},
-        //         Event::KeyDown { keycode: Some(Keycode::Down), ..} => {   self.input.keys[1] &= 0x7},
-        //         Event::KeyDown { keycode: Some(Keycode::Z), ..} => {      self.input.keys[0] &= 0xE},
-        //         Event::KeyDown { keycode: Some(Keycode::X), ..} => {      self.input.keys[0] &= 0xD},
-        //         Event::KeyDown { keycode: Some(Keycode::Space), ..} => {  self.input.keys[0] &= 0xB},
-        //         Event::KeyDown { keycode: Some(Keycode::KpEnter), ..} => {self.input.keys[0] &= 0x7},
-        //
-        //         Event::KeyUp   { keycode: Some(Keycode::Right), ..} => {  self.input.keys[1] |= 0x1},
-        //         Event::KeyUp   { keycode: Some(Keycode::Left), ..} => {   self.input.keys[1] |= 0x2},
-        //         Event::KeyUp   { keycode: Some(Keycode::Up), ..} => {     self.input.keys[1] |= 0x4},
-        //         Event::KeyUp   { keycode: Some(Keycode::Down), ..} => {   self.input.keys[1] |= 0x8},
-        //         Event::KeyUp   { keycode: Some(Keycode::Z), ..} => {      self.input.keys[0] |= 0x1},
-        //         Event::KeyUp   { keycode: Some(Keycode::X), ..} => {      self.input.keys[0] |= 0x2},
-        //         Event::KeyUp   { keycode: Some(Keycode::Space), ..} => {  self.input.keys[0] |= 0x4},
-        //         Event::KeyUp   { keycode: Some(Keycode::KpEnter), ..} => {self.input.keys[0] |= 0x8},
-        //         _ => {}
-        //     }
-        // }
-
         self.state_clock += clock_m;
 
         match self.state {
@@ -437,7 +547,6 @@ impl GPU {
         return (self.lcd_control & 0x02) >> 1;
     }
 
-    // TODO - this should be checked whenever we draw BG elements
     fn get_background_status(&self) -> u8 {
         return self.lcd_control & 0x01;
     }

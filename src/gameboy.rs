@@ -134,11 +134,14 @@ impl GameBoy {
     }
 
     fn emulate_bios_setup(&mut self) {
-        self.cpu.write_register_af(0x01);
-        self.cpu.write_register_f(0xB0);
+        // TODO - Other types. Section 3.2 on https://github.com/AntonioND/giibiiadvance/blob/master/docs/TCAGBD.pdf
+        // DMG Values
+        self.cpu.write_register_af(0x01B0);
         self.cpu.write_register_bc(0x0013);
         self.cpu.write_register_de(0x00D8);
         self.cpu.write_register_hl(0x014D);
+
+
         self.cpu.stack_pointer = 0xFFFE;
         self.mmu.write_byte(0xFF00, 0x0F);
         self.mmu.write_byte(0xFF05, 0x00);

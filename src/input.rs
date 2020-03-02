@@ -8,7 +8,7 @@ impl Input {
         debug!("Initializing Input");
 
         let column = 0;
-        let keys = [0x0F, 2];
+        let keys = [0x0F; 2];
 
         Input {
             column,

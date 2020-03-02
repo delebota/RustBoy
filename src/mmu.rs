@@ -112,7 +112,7 @@ impl MMU {
                     return self.rom_banks[self.active_rom_bank as usize][(address - 0x4000) as usize];
                 },
                 0x8 | 0x9 => { // Video RAM
-                    return self.gpu.read_byte(address);
+                    return self.gpu.read_vram(address);
                 },
                 0xA | 0xB => { // External RAM (switchable RAM bank)
                     return self.eram[(address - 0xA000) as usize];
@@ -207,7 +207,7 @@ impl MMU {
                     return;
                 },
                 0x8 | 0x9 => { // Video RAM
-                    self.gpu.write_byte(address, value);
+                    self.gpu.write_vram(address, value);
                     return;
                 },
                 0xA | 0xB => { // External RAM (switchable RAM bank)

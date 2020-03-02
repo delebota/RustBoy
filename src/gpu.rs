@@ -19,37 +19,37 @@ struct Sprite {
     x: i16,
     y: i16,
     tile: u8,
-    palette: u8,
+    palette: bool,
     xflip: bool,
     yflip: bool,
-    priority: u8
+    bg_priority: bool
 }
 
 impl Sprite {
     pub fn new() -> Sprite {
-        let x = -8;
-        let y = -16;
+        let x = 8;
+        let y = 16;
         let tile = 0;
-        let palette = 0;
+        let palette= false;   // false = pal 0, true = pal 1
         let xflip = false;
         let yflip = false;
-        let priority = 0;
+        let bg_priority = false; // false = 0 = above bg/win, true = 1 = under bg/win color 1,2,3 but above bg/win color 0
 
         Sprite {
-            x,
-            y,
-            tile,
-            palette,
-            xflip,
-            yflip,
-            priority
+            x,          // Byte 0
+            y,          // Byte 1
+            tile,       // Byte 2
+            palette,    // Byte 3, Bit 4
+            xflip,      // Byte 3, Bit 5
+            yflip,      // Byte 3, Bit 6
+            bg_priority // Byte 3, Bit 7
         }
     }
 }
 
 pub struct GPU {
     sdl_context: Sdl,
-    canvas: Canvas<Window>,
+    pub canvas: Canvas<Window>,
     pub vram_debug_canvas: Canvas<Window>,
     pub event_pump: EventPump,
     pub input: Input,
@@ -67,12 +67,13 @@ pub struct GPU {
     ly_compare: u8,   // TODO - implement and use this
     dma_transfer: u8, // TODO - implement and use this
     palette: [u8; 4],
-    sprite_palette_0: [u8; 4], //TODO - 0 is always transparent, may need seperate palette_ref
-    sprite_palette_1: [u8; 4], //TODO - 0 is always transparent, may need seperate palette_ref
+    sprite_palette_0: [u8; 4],
+    sprite_palette_1: [u8; 4],
     window_y: u8,
     window_x: u8,
     gpu_registers: [u8; 52],
     palette_reference: [Color; 4],
+    sprite_palette_reference: [Color; 4],
     lock_vram: bool,
     pub debug: bool
 }
@@ -86,7 +87,7 @@ impl GPU {
             .window("RustBoy", 160, 144).position(800, 100).build().unwrap()
             .into_canvas().accelerated().build().unwrap();
         let vram_debug_canvas = sdl_context.video().unwrap()
-            .window("VRAM", 256, 256).position(800, 300).hidden().build().unwrap()
+            .window("GPU", 256, 256).position(800, 300).hidden().build().unwrap()
             .into_canvas().accelerated().build().unwrap();
         let event_pump = sdl_context.event_pump().unwrap();
         let input = Input::new();
@@ -111,8 +112,10 @@ impl GPU {
         let gpu_registers= [0; 52];
         // Green Palette - OG GameBoy
         let palette_reference = [Color::RGB(155,188,15), Color::RGB(139,172,15), Color::RGB(48,98,48), Color::RGB(15,56,15)];
+        let sprite_palette_reference = [Color::RGB(155,188,15), Color::RGB(139,172,15), Color::RGB(48,98,48), Color::RGB(15,56,15)];
         // B&W Palette - GameBoy Pocket
-        // let palette_reference = [Color::RGB(255,255,255), Color::RGB(192,192,192), Color::RGB(96,96,96), Color::RGB(0,0,0)];
+        // let palette_reference = [Color::RGBA(255,255,255,100), Color::RGBA(192,192,192,100), Color::RGBA(96,96,96,100), Color::RGBA(0,0,0,100)];
+        // let sprite_palette_reference = [Color::RGBA(255,255,255,100), Color::RGBA(192,192,192,100), Color::RGBA(96,96,96,100), Color::RGBA(0,0,0,0)];
         let lock_vram = false;
         let debug = false;
 
@@ -142,6 +145,7 @@ impl GPU {
             window_x,
             gpu_registers,
             palette_reference,
+            sprite_palette_reference,
             lock_vram,
             debug
         }
@@ -165,11 +169,9 @@ impl GPU {
                 return self.render_line;
             },
             0xFF45 => {
-                //TODO - Can we read this?
                 return self.ly_compare;
             },
             0xFF46 => {
-                //TODO - Can we read this?
                 return self.dma_transfer;
             },
             0xFF47 => {
@@ -216,12 +218,10 @@ impl GPU {
                 return;
             },
             0xFF45 => {
-                //TODO
                 self.ly_compare = value;
                 return;
             },
             0xFF46 => {
-                //TODO
                 self.dma_transfer = value;
                 return;
             },
@@ -261,11 +261,11 @@ impl GPU {
         }
     }
 
-    pub fn read_byte(&self, address: u16) -> u8 {
+    pub fn read_vram(&self, address: u16) -> u8 {
         return self.vram[(address - 0x8000) as usize];
     }
 
-    pub fn write_byte(&mut self, address: u16, value: u8) {
+    pub fn write_vram(&mut self, address: u16, value: u8) {
         // GameBoy code has requested to write to vram
         trace!("GPU Write. Address: {:#06X}. Translated: {:#06X}. Value: {:#04X}", address, address - 0x8000, value);
 
@@ -377,7 +377,12 @@ impl GPU {
 
                 // TODO - Is this right?
                 if object.y <= self.render_line as i16 && (object.y + 8) > self.render_line as i16 {
-                    let palette = object.palette;
+                    let sprite_palette;
+                    if object.palette {
+                        sprite_palette = self.sprite_palette_1;
+                    } else {
+                        sprite_palette = self.sprite_palette_0;
+                    }
 
                     for x in 0..8 {
                         let x_index;
@@ -394,8 +399,8 @@ impl GPU {
                             tile = self.tileset[object.tile as usize][(self.render_line - object.y as u8) as usize][x_index as usize];
                         }
 
-                        if object.x + x >= 0 && object.x + x < 160 && tile != 0 && (object.priority == 1) || scan_row[(object.x + x) as usize] == 0 {
-                            let color = self.palette_reference[self.palette[tile as usize] as usize];
+                        if object.x + x >= 0 && object.x + x < 160 && tile != 0 && object.bg_priority || scan_row[(object.x + x) as usize] == 0 {
+                            let color = self.sprite_palette_reference[sprite_palette[tile as usize] as usize];
                             self.canvas.set_draw_color(color);
 
                             let result = self.canvas.draw_point(Point::new(object.x as i32 + x as i32, self.render_line as i32));
@@ -428,9 +433,9 @@ impl GPU {
                 },
                 3 => {
                     if value & 0x10 == 0x10 {
-                        self.object_data[object as usize].palette = 1;
+                        self.object_data[object as usize].palette = true;
                     } else {
-                        self.object_data[object as usize].palette = 0;
+                        self.object_data[object as usize].palette = false;
                     }
 
                     if value & 0x20 == 0x20 {
@@ -446,9 +451,9 @@ impl GPU {
                     }
 
                     if value & 0x80 == 0x80 {
-                        self.object_data[object as usize].priority = 1;
+                        self.object_data[object as usize].bg_priority = true;
                     } else {
-                        self.object_data[object as usize].priority = 0;
+                        self.object_data[object as usize].bg_priority = false;
                     }
                     return;
                 },

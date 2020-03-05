@@ -112,7 +112,8 @@ impl GPU {
         let gpu_registers= [0; 52];
         // Green Palette - OG GameBoy
         let palette_reference = [Color::RGB(155,188,15), Color::RGB(139,172,15), Color::RGB(48,98,48), Color::RGB(15,56,15)];
-        let sprite_palette_reference = [Color::RGB(155,188,15), Color::RGB(139,172,15), Color::RGB(48,98,48), Color::RGB(15,56,15)];
+        // TODO - 00 should be transparent
+        let sprite_palette_reference = [Color::RGB(155,188,15), Color::RGB(139,172,15), Color::RGB(48,98,48), Color::RGBA(0,0,0,0)];
         // B&W Palette - GameBoy Pocket
         // let palette_reference = [Color::RGBA(255,255,255,100), Color::RGBA(192,192,192,100), Color::RGBA(96,96,96,100), Color::RGBA(0,0,0,100)];
         // let sprite_palette_reference = [Color::RGBA(255,255,255,100), Color::RGBA(192,192,192,100), Color::RGBA(96,96,96,100), Color::RGBA(0,0,0,0)];
@@ -462,23 +463,25 @@ impl GPU {
         }
     }
 
-    pub fn tick(&mut self, clock_m: u32) {
-        self.state_clock += clock_m;
+    pub fn tick(&mut self, clock_t: u32) -> bool {
+        let mut entered_vblank = false;
+
+        self.state_clock += clock_t;
 
         match self.state {
             STATE_OAM_READ => {
                 //trace!("GPU STATE: OAM READ");
 
-                if self.state_clock >= 20 {
-                    self.state_clock = 0;
+                if self.state_clock >= 80 {
+                    self.state_clock -= 80;
                     self.state = STATE_VRAM_READ;
                 }
             },
             STATE_VRAM_READ => {
                 //trace!("GPU STATE: VRAM READ");
 
-                if self.state_clock >= 43 {
-                    self.state_clock = 0;
+                if self.state_clock >= 172 {
+                    self.state_clock -= 172;
                     self.state = STATE_HBLANK;
 
                     // Render a scanline
@@ -488,8 +491,8 @@ impl GPU {
             STATE_HBLANK => {
                 //trace!("GPU STATE: HBLANK");
 
-                if self.state_clock >= 51 {
-                    self.state_clock = 0;
+                if self.state_clock >= 204 {
+                    self.state_clock -= 204;
                     self.render_line += 1;
 
                     if self.render_line == 143 {
@@ -498,7 +501,8 @@ impl GPU {
                         if self.get_display_status() == 1 {
                             self.canvas.present();
                         }
-//                        MMU->intflags |= 1; // TODO - Do we need this?
+
+                        entered_vblank = true;
                     } else {
                         self.state = STATE_OAM_READ;
                     }
@@ -507,8 +511,8 @@ impl GPU {
             STATE_VBLANK => {
                 //trace!("GPU STATE: VBLANK");
 
-                if self.state_clock >= 114 {
-                    self.state_clock = 0;
+                if self.state_clock >= 416 {
+                    self.state_clock -= 416;
                     self.render_line += 1;
 
                     if self.render_line > 153 {
@@ -522,9 +526,11 @@ impl GPU {
                 self.state = STATE_OAM_READ;
             }
         }
+
+        return entered_vblank;
     }
 
-    fn get_display_status(&self) -> u8 {
+    pub fn get_display_status(&self) -> u8 {
         return (self.lcd_control & 0x80) >> 7;
     }
 

@@ -286,6 +286,17 @@ impl MMU {
         self.write_byte(address + 1, (value >> 8) as u8);
     }
 
+    pub fn timer_tick(&mut self, clock_t: u32) {
+        // TODO
+
+        // Bit 2    - Timer Stop  (0=Stop, 1=Start)
+        // Bits 1-0 - Input Clock Select
+        // 00:   4096 Hz    (~4194 Hz SGB)
+        // 01: 262144 Hz  (~268400 Hz SGB)
+        // 10:  65536 Hz   (~67110 Hz SGB)
+        // 11:  16384 Hz   (~16780 Hz SGB)
+    }
+
     pub fn set_cartridge_type(&mut self, value: u8) {
         self.cartridge_type = value;
     }
@@ -304,8 +315,7 @@ impl MMU {
     }
 
     fn update_active_rom_bank(&mut self, value: u8) {
-        // TODO - Finish MBC1 support
-        //TODO - support 2,3,5 cart types, maybe others...
+        // TODO - Finish MBC1,2,3,5 support
         match self.cartridge_type {
             ROM_ONLY => {
                 trace!("Tried to change active ROM bank on a ROM_ONLY cartridge.");
@@ -334,8 +344,7 @@ impl MMU {
     }
 
     fn update_memory_model(&mut self, value: u8) {
-        // TODO - Finish MBC1 support
-        //TODO - support 2,3,5 cart types, maybe others...
+        // TODO - Finish MBC1,2,3,5 support
         match self.cartridge_type {
             ROM_ONLY => {
                 if value == 0 || value == 1 {

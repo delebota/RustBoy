@@ -1,10 +1,13 @@
 use std::process::exit;
 
-use crate::cartridge::Cartridge;
-use crate::cpu::{CPU, VBLANK_INTERRUPT_BIT, LCD_INTERRUPT_BIT, TIMER_INTERRUPT_BIT, SERIAL_INTERRUPT_BIT, JOYPAD_INTERRUPT_BIT};
-use crate::mmu::MMU;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
+
+use crate::cartridge::Cartridge;
+use crate::cpu::{CPU, JOYPAD_INTERRUPT_BIT, LCD_INTERRUPT_BIT, SERIAL_INTERRUPT_BIT, TIMER_INTERRUPT_BIT, VBLANK_INTERRUPT_BIT};
+use crate::mmu::MMU;
+
+const HALT_INSTRUCTION: u8 = 0x76;
 
 pub struct GameBoy {
     pub cpu: CPU,
@@ -24,11 +27,13 @@ impl GameBoy {
             self.cpu.program_counter = 0x100;
         }
 
+        let mut div_control: u8 = 0;
         loop {
             if !self.is_paused {
+                //TODO - Move this...
                 for event in self.mmu.gpu.event_pump.poll_iter() {
                     match event {
-                        Event::Quit    { timestamp } => exit(2),
+                        Event::Quit    {..} => exit(2),
                         Event::KeyDown { keycode: Some(Keycode::Escape), ..} => exit(2),
 
                         Event::KeyDown { keycode: Some(Keycode::Right), ..} => {  self.mmu.gpu.input.keys[1] &= 0xE},
@@ -52,43 +57,129 @@ impl GameBoy {
                     }
                 }
 
-                self.cpu.tick(&mut self.mmu);
-                self.mmu.gpu.tick(self.cpu.get_clock_m());
+                // Execute CPU Cycle
+                let opcode = self.cpu.tick(&mut self.mmu);
 
-                // Interrupts - Check if master enable is on, check if any interrupts are enabled, check if any interrupts have been fired (0xFF0F)
-                let interrupt_enable_register = self.mmu.interrupt_enable_register;
-                let interrupt_flags_register = self.mmu.read_byte(0xFF0F);
-                if self.cpu.interrupt_master_enable && interrupt_enable_register > 0 && interrupt_flags_register > 0 {
-                    // Vertical Blank Interrupt
-                    if interrupt_enable_register & VBLANK_INTERRUPT_BIT == 1 && interrupt_flags_register & VBLANK_INTERRUPT_BIT == 1 {
-                        self.mmu.write_byte(0xFF0F, interrupt_flags_register & (255 - VBLANK_INTERRUPT_BIT));
-                        self.cpu.trigger_interrupt(&mut self.mmu, VBLANK_INTERRUPT_BIT);
-                    }
+                // Handle Interrupts
+                if opcode == HALT_INSTRUCTION || self.cpu.interrupt_master_enable {
+                    // Check if any interrupts are enabled, check if any interrupts have been fired (0xFF0F)
+                    let interrupt_enable_register = self.mmu.interrupt_enable_register;
+                    let interrupt_flags_register = self.mmu.read_byte(0xFF0F);
+                    if interrupt_enable_register > 0 && interrupt_flags_register > 0 {
+                        let mut interrupt_handled_this_tick = false;
 
-                    // LCD Interrupt
-                    if interrupt_enable_register & LCD_INTERRUPT_BIT == 2 && interrupt_flags_register & LCD_INTERRUPT_BIT == 2 {
-                        self.mmu.write_byte(0xFF0F, interrupt_flags_register & (255 - LCD_INTERRUPT_BIT));
-                        self.cpu.trigger_interrupt(&mut self.mmu, LCD_INTERRUPT_BIT);
-                    }
+                        // Vertical Blank Interrupt
+                        if interrupt_enable_register & VBLANK_INTERRUPT_BIT == 1 && interrupt_flags_register & VBLANK_INTERRUPT_BIT == 1 {
+                            debug!("VBlank Interrupt");
 
-                    // Timer Interrupt
-                    if interrupt_enable_register & TIMER_INTERRUPT_BIT == 4 && interrupt_flags_register & TIMER_INTERRUPT_BIT == 4 {
-                        self.mmu.write_byte(0xFF0F, interrupt_flags_register & (255 - TIMER_INTERRUPT_BIT));
-                        self.cpu.trigger_interrupt(&mut self.mmu, TIMER_INTERRUPT_BIT);
-                    }
+                            interrupt_handled_this_tick = true;
 
-                    // Serial Interrupt
-                    if interrupt_enable_register & SERIAL_INTERRUPT_BIT == 8 && interrupt_flags_register & SERIAL_INTERRUPT_BIT == 8 {
-                        self.mmu.write_byte(0xFF0F, interrupt_flags_register & (255 - SERIAL_INTERRUPT_BIT));
-                        self.cpu.trigger_interrupt(&mut self.mmu, SERIAL_INTERRUPT_BIT);
-                    }
+                            if opcode == HALT_INSTRUCTION {
+                                self.cpu.program_counter += 1;
+                            }
 
-                    // Joypad Interrupt
-                    if interrupt_enable_register & JOYPAD_INTERRUPT_BIT == 16 && interrupt_flags_register & JOYPAD_INTERRUPT_BIT == 16 {
-                        self.mmu.write_byte(0xFF0F, interrupt_flags_register & (255 - JOYPAD_INTERRUPT_BIT));
-                        self.cpu.trigger_interrupt(&mut self.mmu, JOYPAD_INTERRUPT_BIT);
+                            if self.cpu.interrupt_master_enable {
+                                self.cpu.interrupt_master_enable = false;
+                                self.mmu.write_byte(0xFF0F, interrupt_flags_register & (255 - VBLANK_INTERRUPT_BIT));
+                                self.cpu.stack_pointer -= 2;
+                                self.mmu.write_word(self.cpu.stack_pointer, self.cpu.program_counter);
+                                self.cpu.program_counter = 0x40;
+                            }
+                        }
+
+                //         // LCD Interrupt
+                //         if !interrupt_handled_this_tick &&
+                //         interrupt_enable_register & LCD_INTERRUPT_BIT == 2 && interrupt_flags_register & LCD_INTERRUPT_BIT == 2 {
+                //             if opcode == HALT_INSTRUCTION {
+                //                 self.cpu.program_counter += 1;
+                //                 interrupt_handled_this_tick = true;
+                //             }
+                //
+                //             if self.cpu.interrupt_master_enable {
+                //                 self.cpu.interrupt_master_enable = false;
+                //                 self.mmu.write_byte(0xFF0F, interrupt_flags_register & (255 - LCD_INTERRUPT_BIT));
+                //                 self.cpu.stack_pointer -= 2;
+                //                 self.mmu.write_word(self.cpu.stack_pointer, self.cpu.program_counter);
+                //                 self.cpu.program_counter = 0x48;
+                //                 interrupt_handled_this_tick = true;
+                //             }
+                //         }
+                //
+                //         // Timer Interrupt
+                //         if !interrupt_handled_this_tick &&
+                //         interrupt_enable_register & TIMER_INTERRUPT_BIT == 4 && interrupt_flags_register & TIMER_INTERRUPT_BIT == 4 {
+                //             if opcode == HALT_INSTRUCTION {
+                //                 self.cpu.program_counter += 1;
+                //                 interrupt_handled_this_tick = true;
+                //             }
+                //
+                //             if self.cpu.interrupt_master_enable {
+                //                 self.cpu.interrupt_master_enable = false;
+                //                 self.mmu.write_byte(0xFF0F, interrupt_flags_register & (255 - TIMER_INTERRUPT_BIT));
+                //                 self.cpu.stack_pointer -= 2;
+                //                 self.mmu.write_word(self.cpu.stack_pointer, self.cpu.program_counter);
+                //                 self.cpu.program_counter = 0x50;
+                //                 interrupt_handled_this_tick = true;
+                //             }
+                //         }
+                //
+                //         // Serial Interrupt
+                //         if !interrupt_handled_this_tick &&
+                //         interrupt_enable_register & SERIAL_INTERRUPT_BIT == 8 && interrupt_flags_register & SERIAL_INTERRUPT_BIT == 8 {
+                //             if opcode == HALT_INSTRUCTION {
+                //                 self.cpu.program_counter += 1;
+                //                 interrupt_handled_this_tick = true;
+                //             }
+                //
+                //             if self.cpu.interrupt_master_enable {
+                //                 self.cpu.interrupt_master_enable = false;
+                //                 self.mmu.write_byte(0xFF0F, interrupt_flags_register & (255 - SERIAL_INTERRUPT_BIT));
+                //                 self.cpu.stack_pointer -= 2;
+                //                 self.mmu.write_word(self.cpu.stack_pointer, self.cpu.program_counter);
+                //                 self.cpu.program_counter = 0x58;
+                //                 interrupt_handled_this_tick = true;
+                //             }
+                //         }
+                //
+                //         // Joypad Interrupt
+                //         if !interrupt_handled_this_tick &&
+                //         interrupt_enable_register & JOYPAD_INTERRUPT_BIT == 16 && interrupt_flags_register & JOYPAD_INTERRUPT_BIT == 16 {
+                //             if opcode == HALT_INSTRUCTION {
+                //                 self.cpu.program_counter += 1;
+                //                 interrupt_handled_this_tick = true;
+                //             }
+                //
+                //             if self.cpu.interrupt_master_enable {
+                //                 self.cpu.interrupt_master_enable = false;
+                //                 self.mmu.write_byte(0xFF0F, interrupt_flags_register & (255 - JOYPAD_INTERRUPT_BIT));
+                //                 self.cpu.stack_pointer -= 2;
+                //                 self.mmu.write_word(self.cpu.stack_pointer, self.cpu.program_counter);
+                //                 self.cpu.program_counter = 0x60;
+                //                 interrupt_handled_this_tick = true;
+                //             }
+                //         }
                     }
                 }
+
+                // Update display
+                let entered_vblank = self.mmu.gpu.tick(self.cpu.get_clock_t());
+                if entered_vblank {
+                    //TODO - trace
+                    debug!("Requesting VBlank");
+                    let interrupt_request = self.mmu.read_byte(0xFF0F);
+                    self.mmu.write_byte(0xFF0F, interrupt_request | 1);
+                }
+
+                // Update timer
+                self.mmu.timer_tick(self.cpu.get_clock_t());
+
+                // Update DIV register
+                let (result, overflow) = div_control.overflowing_add(self.cpu.get_clock_t() as u8);
+                if overflow {
+                    let div_register = self.mmu.read_byte(0xFF04);
+                    self.mmu.write_byte(0xFF04, div_register.wrapping_add(1));
+                }
+                div_control = result;
             }
 
             // TODO - proper processing speed

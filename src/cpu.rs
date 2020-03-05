@@ -44,7 +44,7 @@ const OPERATION_MACHINE_CYCLES: [u32; 256] = [
     1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, // 4
     1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, // 5
     1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, // 6
-    2, 2, 2, 2, 2, 2, 0, 2, 1, 1, 1, 1, 1, 1, 2, 1, // 7
+    2, 2, 2, 2, 2, 2, 1, 2, 1, 1, 1, 1, 1, 1, 2, 1, // 7
     1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, // 8
     1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, // 9
     1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, // A
@@ -64,7 +64,7 @@ const OPERATION_MACHINE_CYCLES_BRANCHED: [u32; 256] = [
     1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, // 4
     1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, // 5
     1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, // 6
-    2, 2, 2, 2, 2, 2, 0, 2, 1, 1, 1, 1, 1, 1, 2, 1, // 7
+    2, 2, 2, 2, 2, 2, 1, 2, 1, 1, 1, 1, 1, 1, 2, 1, // 7
     1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, // 8
     1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, // 9
     1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, // A
@@ -138,7 +138,7 @@ impl CPU {
         return self.clock.t;
     }
 
-    pub fn tick(&mut self, mmu: &mut MMU) {
+    pub fn tick(&mut self, mmu: &mut MMU) -> u8 {
         // Fetch opcode
         let opcode = mmu.read_byte(self.program_counter);
 
@@ -151,6 +151,8 @@ impl CPU {
                 self.process_opcode(mmu, opcode);
             }
         }
+
+        return opcode;
     }
 
     fn process_opcode(&mut self, mmu: &mut MMU, opcode: u8) {
@@ -243,10 +245,21 @@ impl CPU {
                 let result = self.rotate_right(self.read_register_a(), false);
                 self.write_register_a(result);
             },
-            // 0x10 => {
-            //     error!("{:#04X}: STOP.", opcode);
-            //     //TODO
-            // },
+            0x10 => {
+                error!("{:#04X}: STOP.", opcode);
+                mmu.gpu.canvas.clear();
+                mmu.gpu.canvas.present();
+                // TODO - Stop Audio
+
+                // TODO
+                exit(1);
+
+                // if mmu.gpu.get_display_status() == 0 {
+                //     // TODO - GBC = Black screen, audio still on
+                // } else {
+                //     // TODO - GBC = White screen, audio still on
+                // }
+            },
             0x11 => {
                 trace!("{:#04X}: LD DE,d16. DE:{:#06X} <- d16:{:#06X}", opcode, self.read_register_de(), mmu.read_word(self.program_counter + 1));
 
@@ -875,10 +888,11 @@ impl CPU {
 
                 mmu.write_byte(self.read_register_hl(), self.read_register_l());
             },
-            // 0x76 => {
-            //     error!("{:#04X}: HALT.", opcode);
-            //     //TODO
-            // },
+            0x76 => {
+                error!("{:#04X}: HALT. {}", opcode, mmu.interrupt_enable_register);
+
+                increment_program_counter = false;
+            },
             0x77 => {
                 trace!("{:#04X}: LD (HL),A. HL:{:#06X} <- A: {:#04X}", opcode, self.read_register_hl(), self.read_register_a());
 
@@ -3838,7 +3852,7 @@ impl CPU {
         self.hl.word = hl;
     }
 
-    fn set_flag_bit(&mut self, bit: u8) {
+    pub fn set_flag_bit(&mut self, bit: u8) {
         self.write_register_f(self.read_register_f() | bit);
     }
 
@@ -3874,44 +3888,5 @@ impl CPU {
         }
 
         exit(1);
-    }
-
-    pub fn trigger_interrupt(&mut self, mmu: &mut MMU, bit: u8) {
-        // Disable interrupts
-        self.interrupt_master_enable = false;
-
-        // Push stack pointer
-        self.stack_pointer -= 2;
-        mmu.write_word(self.stack_pointer, self.program_counter);
-
-        // Jump
-        match bit {
-            VBLANK_INTERRUPT_BIT => {
-                //TODO - trace
-                debug!("VBlank Interrupt Fired");
-                self.program_counter =  0x0040;
-            },
-            LCD_INTERRUPT_BIT => {
-                //TODO - trace
-                debug!("LCD Interrupt Fired");
-                self.program_counter =  0x0048;
-            },
-            TIMER_INTERRUPT_BIT => {
-                //TODO - trace
-                debug!("Timer Interrupt Fired");
-                self.program_counter =  0x0050;
-            },
-            SERIAL_INTERRUPT_BIT => {
-                //TODO - trace
-                debug!("Serial Interrupt Fired");
-                self.program_counter =  0x0058;
-            },
-            JOYPAD_INTERRUPT_BIT => {
-                //TODO - trace
-                debug!("Joypad Interrupt Fired");
-                self.program_counter =  0x0060;
-            },
-            _ => {}
-        }
     }
 }

@@ -16,6 +16,7 @@ mod gameboy;
 mod gpu;
 mod input;
 mod mmu;
+mod timer;
 
 fn main() {
     // Command Line Arg Parser

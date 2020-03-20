@@ -40,31 +40,20 @@ pub struct Cartridge {
 }
 
 impl Cartridge {
-    pub fn new() -> Cartridge {
+    pub fn new() -> Self {
         debug!("Initializing Cartridge");
 
-        let title = String::from("                ");
-        let gameboy_type = 0x00;
-        let is_super_gameboy = 0x00;
-        let cartridge_type = ROM_ONLY;
-        let rom_size = 0x00;
-        let ram_size = 0x00;
-        let region = 0x00;
-        let licensee = 0x33;
-        let version = 0x00;
-        let checksum = 0x0000;
-
         Cartridge {
-            title,
-            gameboy_type,
-            is_super_gameboy,
-            cartridge_type,
-            rom_size,
-            ram_size,
-            region,
-            licensee,
-            version,
-            checksum
+            title: String::from("                "),
+            gameboy_type: 0,
+            is_super_gameboy: 0,
+            cartridge_type: ROM_ONLY,
+            rom_size: 0,
+            ram_size: 0,
+            region: 0,
+            licensee: 0x33,
+            version: 0,
+            checksum: 0
         }
     }
 

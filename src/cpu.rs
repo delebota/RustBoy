@@ -35,7 +35,7 @@ const OPERATION_BYTES: [u16; 256] = [
     2, 1, 1, 1, 0, 1, 2, 1, 2, 1, 3, 1, 0, 0, 2, 1  // F
 ];
 
-const OPERATION_MACHINE_CYCLES: [u32; 256] = [
+const OPERATION_MACHINE_CYCLES: [u8; 256] = [
 //  0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
     1, 3, 2, 2, 1, 1, 2, 1, 5, 2, 2, 2, 1, 1, 2, 1, // 0
     0, 3, 2, 2, 1, 1, 2, 1, 3, 2, 2, 2, 1, 1, 2, 1, // 1
@@ -55,7 +55,7 @@ const OPERATION_MACHINE_CYCLES: [u32; 256] = [
     3, 3, 2, 1, 0, 4, 2, 4, 3, 2, 4, 1, 0, 0, 2, 4  // F
 ];
 
-const OPERATION_MACHINE_CYCLES_BRANCHED: [u32; 256] = [
+const OPERATION_MACHINE_CYCLES_BRANCHED: [u8; 256] = [
 //  0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
     1, 3, 2, 2, 1, 1, 2, 1, 5, 2, 2, 2, 1, 1, 2, 1, // 0
     0, 3, 2, 2, 1, 1, 2, 1, 3, 2, 2, 2, 1, 1, 2, 1, // 1
@@ -87,8 +87,8 @@ union Register16 {
 }
 
 pub struct Clock {
-    m: u32,
-    t: u32
+    m: u8,
+    t: u8
 }
 
 pub struct CPU {
@@ -104,37 +104,27 @@ pub struct CPU {
 }
 
 impl CPU {
-    pub fn new() -> CPU {
+    pub fn new() -> Self {
         debug!("Initializing CPU");
 
-        let af = Register16{word: 0};
-        let bc = Register16{word: 0};
-        let de = Register16{word: 0};
-        let hl = Register16{word: 0};
-        let stack_pointer = 0x0;
-        let program_counter = 0x0;
-        let skip_bios = false;
-        let clock = Clock{ m: 0, t: 0 };
-        let interrupt_master_enable = true;
-
         CPU {
-            af,
-            bc,
-            de,
-            hl,
-            stack_pointer,
-            program_counter,
-            skip_bios,
-            clock,
-            interrupt_master_enable
+            af: Register16{word: 0},
+            bc: Register16{word: 0},
+            de: Register16{word: 0},
+            hl: Register16{word: 0},
+            stack_pointer: 0,
+            program_counter: 0,
+            skip_bios: false,
+            clock: Clock{ m: 0, t: 0 },
+            interrupt_master_enable: true
         }
     }
 
-    pub fn get_clock_m(&self) -> u32 {
+    pub fn get_clock_m(&self) -> u8 {
         return self.clock.m;
     }
 
-    pub fn get_clock_t(&self) -> u32 {
+    pub fn get_clock_t(&self) -> u8 {
         return self.clock.t;
     }
 
@@ -303,8 +293,10 @@ impl CPU {
 
                 let next_byte_signed: i8 = mmu.read_byte(self.program_counter + 1) as i8;
                 if next_byte_signed < 0 {
+                    trace!("Jumping to {:#06X}", self.program_counter - ((next_byte_signed + 2) * -1) as u16);
                     self.program_counter -= ((next_byte_signed + 2) * -1) as u16;
                 } else {
+                    trace!("Jumping to {:#06X}", self.program_counter + (next_byte_signed + 2) as u16);
                     self.program_counter += (next_byte_signed + 2) as u16;
                 }
 
@@ -354,10 +346,10 @@ impl CPU {
                 if self.read_flag(ZERO_BIT) == 0 {
                     let next_byte_signed: i8 = mmu.read_byte(self.program_counter + 1) as i8;
                     if next_byte_signed < 0 {
-                        trace!("Jumping {}", next_byte_signed + 2);
+                        trace!("Jumping to {:#06X}", self.program_counter - ((next_byte_signed + 2) * -1) as u16);
                         self.program_counter -= ((next_byte_signed + 2) * -1) as u16;
                     } else {
-                        trace!("Jumping {}", (next_byte_signed + 2));
+                        trace!("Jumping to {:#06X}", self.program_counter + (next_byte_signed + 2) as u16);
                         self.program_counter += (next_byte_signed + 2) as u16;
                     }
 
@@ -444,10 +436,10 @@ impl CPU {
                 if self.read_flag(ZERO_BIT) == 1 {
                     let next_byte_signed: i8 = mmu.read_byte(self.program_counter + 1) as i8;
                     if next_byte_signed < 0 {
-                        trace!("Jumping {}", next_byte_signed + 2);
+                        trace!("Jumping to {:#06X}", self.program_counter - ((next_byte_signed + 2) * -1) as u16);
                         self.program_counter -= ((next_byte_signed + 2) * -1) as u16;
                     } else {
-                        trace!("Jumping {}", next_byte_signed + 2);
+                        trace!("Jumping to {:#06X}", self.program_counter + (next_byte_signed + 2) as u16);
                         self.program_counter += (next_byte_signed + 2) as u16;
                     }
 
@@ -502,10 +494,10 @@ impl CPU {
                 if self.read_flag(CARRY_BIT) == 0 {
                     let next_byte_signed: i8 = mmu.read_byte(self.program_counter + 1) as i8;
                     if next_byte_signed < 0 {
-                        trace!("Jumping {}", next_byte_signed + 2);
+                        trace!("Jumping to {:#06X}", self.program_counter - ((next_byte_signed + 2) * -1) as u16);
                         self.program_counter -= ((next_byte_signed + 2) * -1) as u16;
                     } else {
-                        trace!("Jumping {}", (next_byte_signed + 2));
+                        trace!("Jumping to {:#06X}", self.program_counter + (next_byte_signed + 2) as u16);
                         self.program_counter += (next_byte_signed + 2) as u16;
                     }
 
@@ -549,7 +541,7 @@ impl CPU {
                 mmu.write_byte(self.read_register_hl(), next_byte);
             },
             0x37 => {
-                trace!("{:#04X}: SCF.", opcode);
+                trace!("{:#04X}: SCF. (Set Carry Flag, Unset Half Carry and Subtraction Flags)", opcode);
 
                 self.set_flag_bit(CARRY_BIT);
                 self.unset_flag_bit(HALF_CARRY_BIT);
@@ -561,10 +553,10 @@ impl CPU {
                 if self.read_flag(CARRY_BIT) == 1 {
                     let next_byte_signed: i8 = mmu.read_byte(self.program_counter + 1) as i8;
                     if next_byte_signed < 0 {
-                        trace!("Jumping {}", next_byte_signed + 2);
+                        trace!("Jumping to {:#06X}", self.program_counter - ((next_byte_signed + 2) * -1) as u16);
                         self.program_counter -= ((next_byte_signed + 2) * -1) as u16;
                     } else {
-                        trace!("Jumping {}", (next_byte_signed + 2));
+                        trace!("Jumping to {:#06X}", self.program_counter + (next_byte_signed + 2) as u16);
                         self.program_counter += (next_byte_signed + 2) as u16;
                     }
 
@@ -1259,9 +1251,10 @@ impl CPU {
                 self.compare_with_register_a(self.read_register_a());
             },
             0xC0 => {
-                trace!("{:#04X}: RET NZ. Returning to {:#06X}", opcode, mmu.read_word(self.stack_pointer + 2));
+                trace!("{:#04X}: RET NZ.", opcode);
 
                 if self.read_flag(ZERO_BIT) == 0 {
+                    trace!("Returning to {:#06X}", mmu.read_word(self.stack_pointer));
                     self.program_counter = mmu.read_word(self.stack_pointer);
                     self.stack_pointer += 2;
                     increment_program_counter = false;
@@ -1274,26 +1267,26 @@ impl CPU {
                 self.stack_pointer += 2;
             },
             0xC2 => {
-                trace!("{:#04X}: JP NZ,a16. Jump to {:#06X}", opcode, mmu.read_word(self.program_counter + 1));
+                trace!("{:#04X}: JP NZ,a16.", opcode);
 
                 if self.read_flag(ZERO_BIT) == 0 {
-                    trace!("Jumping to {}", mmu.read_word(self.program_counter + 1));
+                    trace!("Jumping to {:#06X}", mmu.read_word(self.program_counter + 1));
                     self.program_counter = mmu.read_word(self.program_counter + 1);
                     increment_program_counter = false;
                     use_machine_cycles_branched = true;
                 }
             },
             0xC3 => {
-                trace!("{:#04X}: JP a16. Jump to {:#06X}", opcode, mmu.read_word(self.program_counter + 1));
+                trace!("{:#04X}: JP a16. Jumping to {:#06X}", opcode, mmu.read_word(self.program_counter + 1));
 
                 self.program_counter = mmu.read_word(self.program_counter + 1);
                 increment_program_counter = false;
             },
             0xC4 => {
-                trace!("{:#04X}: CALL NZ,a16. Calling {:#06X}", opcode, mmu.read_word(self.program_counter + 1));
+                trace!("{:#04X}: CALL NZ,a16.", opcode);
 
                 if self.read_flag(ZERO_BIT) == 0 {
-                    trace!("Calling {}", mmu.read_word(self.program_counter + 1));
+                    trace!("Calling {:#06X}", mmu.read_word(self.program_counter + 1));
 
                     // We wrote two bytes, so decrement accordingly (Stack grows downwards)
                     self.stack_pointer -= 2;
@@ -1328,25 +1321,26 @@ impl CPU {
                 increment_program_counter = false;
             },
             0xC8 => {
-                trace!("{:#04X}: RET Z. Returning to {:#06X}", opcode, mmu.read_word(self.stack_pointer + 2));
+                trace!("{:#04X}: RET Z.", opcode);
 
                 if self.read_flag(ZERO_BIT) == 1 {
+                    trace!("Returning to {:#06X}", mmu.read_word(self.stack_pointer));
                     self.program_counter = mmu.read_word(self.stack_pointer);
                     self.stack_pointer += 2;
                     increment_program_counter = false;
                 }
             },
             0xC9 => {
-                trace!("{:#04X}: RET. Returning to {:#06X}", opcode, mmu.read_word(self.stack_pointer + 2));
+                trace!("{:#04X}: RET. Returning to {:#06X}", opcode, mmu.read_word(self.stack_pointer));
                 self.program_counter = mmu.read_word(self.stack_pointer);
                 self.stack_pointer += 2;
                 increment_program_counter = false;
             },
             0xCA => {
-                trace!("{:#04X}: JP Z,a16. Jump to {:#06X}", opcode, mmu.read_word(self.program_counter + 1));
+                trace!("{:#04X}: JP Z,a16.", opcode);
 
                 if self.read_flag(ZERO_BIT) == 1 {
-                    trace!("Jumping to {}", mmu.read_word(self.program_counter + 1));
+                    trace!("Jumping to {:#06X}", mmu.read_word(self.program_counter + 1));
                     self.program_counter = mmu.read_word(self.program_counter + 1);
                     increment_program_counter = false;
                     use_machine_cycles_branched = true;
@@ -1357,10 +1351,10 @@ impl CPU {
                 exit(1);
             },
             0xCC => {
-                trace!("{:#04X}: CALL Z,a16. Calling {:#06X}", opcode, mmu.read_word(self.program_counter + 1));
+                trace!("{:#04X}: CALL Z,a16.", opcode);
 
                 if self.read_flag(ZERO_BIT) == 1 {
-                    trace!("Calling {}", mmu.read_word(self.program_counter + 1));
+                    trace!("Calling {:#06X}", mmu.read_word(self.program_counter + 1));
 
                     // We wrote two bytes, so decrement accordingly (Stack grows downwards)
                     self.stack_pointer -= 2;
@@ -1402,9 +1396,10 @@ impl CPU {
                 increment_program_counter = false;
             },
             0xD0 => {
-                trace!("{:#04X}: RET NC. Returning to {:#06X}", opcode, mmu.read_word(self.stack_pointer + 2));
+                trace!("{:#04X}: RET NC.", opcode);
 
                 if self.read_flag(CARRY_BIT) == 0 {
+                    trace!("Returning to {:#06X}", mmu.read_word(self.stack_pointer));
                     self.program_counter = mmu.read_word(self.stack_pointer);
                     self.stack_pointer += 2;
                     increment_program_counter = false;
@@ -1417,20 +1412,20 @@ impl CPU {
                 self.stack_pointer += 2;
             },
             0xD2 => {
-                trace!("{:#04X}: JP NC,a16. Jump to {:#06X}", opcode, mmu.read_word(self.program_counter + 1));
+                trace!("{:#04X}: JP NC,a16.", opcode);
 
                 if self.read_flag(CARRY_BIT) == 0 {
-                    trace!("Jumping to {}", mmu.read_word(self.program_counter + 1));
+                    trace!("Jumping to {:#06X}", mmu.read_word(self.program_counter + 1));
                     self.program_counter = mmu.read_word(self.program_counter + 1);
                     increment_program_counter = false;
                     use_machine_cycles_branched = true;
                 }
             },
             0xD4 => {
-                trace!("{:#04X}: CALL NC,a16. Calling {:#06X}", opcode, mmu.read_word(self.program_counter + 1));
+                trace!("{:#04X}: CALL NC,a16.", opcode);
 
                 if self.read_flag(CARRY_BIT) == 0 {
-                    trace!("Calling {}", mmu.read_word(self.program_counter + 1));
+                    trace!("Calling {:#06X}", mmu.read_word(self.program_counter + 1));
 
                     // We wrote two bytes, so decrement accordingly (Stack grows downwards)
                     self.stack_pointer -= 2;
@@ -1465,16 +1460,17 @@ impl CPU {
                 increment_program_counter = false;
             },
             0xD8 => {
-                trace!("{:#04X}: RET C. Returning to {:#06X}", opcode, mmu.read_word(self.stack_pointer + 2));
+                trace!("{:#04X}: RET C.", opcode);
 
                 if self.read_flag(CARRY_BIT) == 1 {
+                    trace!("Returning to {:#06X}", mmu.read_word(self.stack_pointer));
                     self.program_counter = mmu.read_word(self.stack_pointer);
                     self.stack_pointer += 2;
                     increment_program_counter = false;
                 }
             },
             0xD9 => {
-                trace!("{:#04X}: RETI. Returning to {:#06X}", opcode, mmu.read_word(self.stack_pointer + 2));
+                trace!("{:#04X}: RETI. Returning to {:#06X}", opcode, mmu.read_word(self.stack_pointer));
 
                 self.program_counter = mmu.read_word(self.stack_pointer);
                 self.stack_pointer += 2;
@@ -1483,20 +1479,20 @@ impl CPU {
                 self.interrupt_master_enable = true;
             },
             0xDA => {
-                trace!("{:#04X}: JP C,a16. Jump to {:#06X}", opcode, mmu.read_word(self.program_counter + 1));
+                trace!("{:#04X}: JP C,a16.", opcode);
 
                 if self.read_flag(CARRY_BIT) == 1 {
-                    trace!("Jumping to {}", mmu.read_word(self.program_counter + 1));
+                    trace!("Jumping to {:#06X}", mmu.read_word(self.program_counter + 1));
                     self.program_counter = mmu.read_word(self.program_counter + 1);
                     increment_program_counter = false;
                     use_machine_cycles_branched = true;
                 }
             },
             0xDC => {
-                trace!("{:#04X}: CALL C,a16. Calling {:#06X}", opcode, mmu.read_word(self.program_counter + 1));
+                trace!("{:#04X}: CALL C,a16.", opcode);
 
                 if self.read_flag(CARRY_BIT) == 1 {
-                    trace!("Calling {}", mmu.read_word(self.program_counter + 1));
+                    trace!("Calling {:#06X}", mmu.read_word(self.program_counter + 1));
 
                     // We wrote two bytes, so decrement accordingly (Stack grows downwards)
                     self.stack_pointer -= 2;
@@ -1590,7 +1586,7 @@ impl CPU {
                 self.stack_pointer = result;
             },
             0xE9 => {
-                trace!("{:#04X}: JP HL. Jump to {:#06X}", opcode, self.read_register_hl());
+                trace!("{:#04X}: JP HL. Jumping to {:#06X}", opcode, self.read_register_hl());
 
                 self.program_counter = self.read_register_hl();
                 increment_program_counter = false;

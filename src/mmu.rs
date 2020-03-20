@@ -5,6 +5,7 @@ use std::process::exit;
 
 use crate::cartridge::{ROM_ONLY, MBC1, MBC1_RAM, MBC1_RAM_BATT};
 use crate::gpu::GPU;
+use crate::timer::Timer;
 
 pub struct MMU {
     pub gpu: GPU,
@@ -21,45 +22,38 @@ pub struct MMU {
     zram: [u8;  127],                   // Zero Page RAM,   0xFF80 - 0xFFFE
     pub interrupt_enable_register: u8,  // Int Enable Reg,  0xFFFF          , Interrupt Enable/Disable Register
 
+    pub timer: Timer,
+
     active_rom_bank: u8,
+    active_ram_bank: u8,
+    active_external_ram: bool,
     rom_size: u8,
-    memory_model: u8,
+    memory_mode: u8,
     cartridge_type: u8,
     pub is_bios_mapped: bool
 }
 
 impl MMU {
-    pub fn new() -> MMU {
+    pub fn new() -> Self {
         debug!("Initializing MMU");
 
-        let gpu = GPU::new();
-        let bios = [0; 256];
-        let rom_banks = vec![vec![0u8; 16384]; 128].into_boxed_slice();
-        let eram = [0; 8192];
-        let wram = [0; 8192];
-        let io_ports = [0; 64];
-        let zram = [0; 127];
-        let interrupt_enable_register = 0;
-        let active_rom_bank = 1;
-        let rom_size = 0;
-        let memory_model = 0;
-        let cartridge_type = ROM_ONLY;
-        let is_bios_mapped = false;
-
         MMU {
-            gpu,
-            bios,
-            rom_banks,
-            eram,
-            wram,
-            io_ports,
-            zram,
-            interrupt_enable_register,
-            active_rom_bank,
-            rom_size,
-            memory_model,
-            cartridge_type,
-            is_bios_mapped
+            gpu: GPU::new(),
+            bios: [0; 256],
+            rom_banks: vec![vec![0u8; 16384]; 128].into_boxed_slice(),
+            eram: [0; 8192],
+            wram: [0; 8192],
+            io_ports: [0; 64],
+            zram: [0; 127],
+            interrupt_enable_register: 0,
+            timer: Timer::new(),
+            active_rom_bank: 1,
+            active_ram_bank: 0,
+            active_external_ram: false,
+            rom_size: 0,
+            memory_mode: 0,
+            cartridge_type: ROM_ONLY,
+            is_bios_mapped: false
         }
     }
 
@@ -103,6 +97,7 @@ impl MMU {
             let addr_nibble_1 = (address & 0xF000) >> 12;
             let addr_nibble_2 = (address & 0x0F00) >> 8;
             let addr_nibble_3 = (address & 0x00F0) >> 4;
+            let addr_nibble_4 =  address & 0x000F;
 
             match addr_nibble_1 {
                 0x0 | 0x1 | 0x2 | 0x3 => { // ROM Bank 0
@@ -115,7 +110,11 @@ impl MMU {
                     return self.gpu.read_vram(address);
                 },
                 0xA | 0xB => { // External RAM (switchable RAM bank)
-                    return self.eram[(address - 0xA000) as usize];
+                    if self.active_external_ram {
+                        return self.eram[(address - 0xA000) as usize];
+                    } else {
+                        return 0;
+                    }
                 },
                 0xC | 0xD => { // Working RAM (internal RAM)
                     return self.wram[(address - 0xC000) as usize];
@@ -140,23 +139,142 @@ impl MMU {
                             }
                         },
                         0xF => { // I/O Ports, Zero Page RAM, Int Enable Register
-                            if address == 0xFF00 { // Joypad
-                                return self.gpu.input.read();
-                            }
-
-                            if address == 0xFFFF { // Int Enable Register
-                                return self.interrupt_enable_register;
-                            }
-
-                            match addr_nibble_3 {
-                                0x0 | 0x1 | 0x2 | 0x3 => { // I/O Ports
+                            match (addr_nibble_3, addr_nibble_4) {
+                                // TODO - Clean this up...
+                                (0x0, 0x0) => { // Joypad
+                                    return self.gpu.input.read() | 0xC0; // or'd with C0 because Bit 6/7 are unmapped, unmapped bits always return as 1
+                                },
+                                (0x0, 0x1) => { // Serial Bus
+                                    //TODO - Serial Bus
                                     return self.io_ports[(address - 0xFF00) as usize];
                                 },
-                                0x4 | 0x5 | 0x6 | 0x7 => { // GPU Registers
-                                    return self.gpu.read_register(address);
+                                (0x0, 0x2) => { // Serial Control
+                                    //TODO - Serial Control
+                                    return self.io_ports[(address - 0xFF00) as usize] | 0x7E; // or'd with 7E because Bits 1-6 are unmapped, unmapped bits always return as 1
                                 },
-                                0x8 | 0x9 | 0xA | 0xB |
-                                0xC | 0xD | 0xE | 0xF => { // Zero Page RAM
+                                (0x0, 0x4) => { // Timer - DIV
+                                    return (self.timer.div >> 8) as u8;
+                                },
+                                (0x0, 0x5) => { // Timer - TIMA
+                                    return self.timer.tima;
+                                },
+                                (0x0, 0x6) => { // Timer - TMA
+                                    return self.timer.tma;
+                                },
+                                (0x0, 0x7) => { // Timer - TAC
+                                    return self.timer.tac | 0xF8; // or'd with F8 because Bits 3-7 are unmapped, unmapped bits always return as 1
+                                },
+                                (0x0, 0xF) => {
+                                    // TODO - Make Interrupt Flag Request a variable
+                                    return self.io_ports[(address - 0xFF00) as usize] | 0xE0; // or'd with E0 because Bits 5-7 are unmapped, unmapped bits always return as 1
+                                },
+                                (0x1, 0x0) => { // APU - NR10
+                                    //TODO - APU
+                                    return self.io_ports[(address - 0xFF00) as usize] | 0x80; // or'd with 80 because Bit 7 is unmapped, unmapped bits always return as 1
+                                },
+                                (0x1, 0x1) => { // APU - NR11
+                                    //TODO - APU
+                                    return self.io_ports[(address - 0xFF00) as usize];
+                                },
+                                (0x1, 0x2) => { // APU - NR12
+                                    //TODO - APU
+                                    return self.io_ports[(address - 0xFF00) as usize];
+                                },
+                                (0x1, 0x3) => { // APU - NR13
+                                    //TODO - APU
+                                    return self.io_ports[(address - 0xFF00) as usize];
+                                },
+                                (0x1, 0x4) => { // APU - NR14
+                                    //TODO - APU
+                                    return self.io_ports[(address - 0xFF00) as usize];
+                                },
+                                (0x1, 0x6) => { // APU - NR21
+                                    //TODO - APU
+                                    return self.io_ports[(address - 0xFF00) as usize];
+                                },
+                                (0x1, 0x7) => { // APU - NR22
+                                    //TODO - APU
+                                    return self.io_ports[(address - 0xFF00) as usize];
+                                },
+                                (0x1, 0x8) => { // APU - NR23
+                                    //TODO - APU
+                                    return self.io_ports[(address - 0xFF00) as usize];
+                                },
+                                (0x1, 0x9) => { // APU - NR24
+                                    //TODO - APU
+                                    return self.io_ports[(address - 0xFF00) as usize];
+                                },
+                                (0x1, 0xA) => { // APU - NR30
+                                    //TODO - APU
+                                    return self.io_ports[(address - 0xFF00) as usize] | 0x7F; // or'd with 7F because Bits 0-6 are unmapped, unmapped bits always return as 1
+                                },
+                                (0x1, 0xB) => { // APU - NR31
+                                    //TODO - APU
+                                    return self.io_ports[(address - 0xFF00) as usize];
+                                },
+                                (0x1, 0xC) => { // APU - NR32
+                                    //TODO - APU
+                                    return self.io_ports[(address - 0xFF00) as usize] | 0x9F; // or'd with 9F because Bits 0-4 and 7 are unmapped, unmapped bits always return as 1
+                                },
+                                (0x1, 0xD) => { // APU - NR33
+                                    //TODO - APU
+                                    return self.io_ports[(address - 0xFF00) as usize];
+                                },
+                                (0x1, 0xE) => { // APU - NR34
+                                    //TODO - APU
+                                    return self.io_ports[(address - 0xFF00) as usize];
+                                },
+                                (0x2, 0x0) => { // APU - NR41
+                                    //TODO - APU
+                                    return self.io_ports[(address - 0xFF00) as usize] | 0xC0; // or'd with C0 because Bits 6/7 are unmapped, unmapped bits always return as 1
+                                },
+                                (0x2, 0x1) => { // APU - NR42
+                                    //TODO - APU
+                                    return self.io_ports[(address - 0xFF00) as usize];
+                                },
+                                (0x2, 0x2) => { // APU - NR43
+                                    //TODO - APU
+                                    return self.io_ports[(address - 0xFF00) as usize];
+                                },
+                                (0x2, 0x3) => { // APU - NR44
+                                    //TODO - APU
+                                    return self.io_ports[(address - 0xFF00) as usize] | 0x3F; // or'd with 3F because Bits 0-5 are unmapped, unmapped bits always return as 1
+                                },
+                                (0x2, 0x4) => { // APU - NR50
+                                    //TODO - APU
+                                    return self.io_ports[(address - 0xFF00) as usize];
+                                },
+                                (0x2, 0x5) => { // APU - NR51
+                                    //TODO - APU
+                                    return self.io_ports[(address - 0xFF00) as usize];
+                                },
+                                (0x2, 0x6) => { // APU - NR52
+                                    //TODO - APU
+                                    return self.io_ports[(address - 0xFF00) as usize] | 0x70; // or'd with  because Bits 4-6 are unmapped, unmapped bits always return as 1
+                                },
+                                (0x3, _) => { // APU - Wave Pattern RAM
+                                    //TODO - APU
+                                    return self.io_ports[(address - 0xFF00) as usize];
+                                },
+                                (0x4, 0x1) => { // STAT Register
+                                    //TODO - STAT Register
+                                    return self.gpu.read_register(address) | 0x80; // or'd with 80 because Bit 7 is unmapped, unmapped bits always return as 1
+                                },
+                                (0xF, 0xF) => { // Interrupt Enable Register
+                                    return self.interrupt_enable_register;
+                                },
+                                (0x0, _) | (0x1, _) | (0x2, _)  => { // Unused I/O Ports, return 0xFF
+                                    return 0xFF;
+                                },
+                                (0x4, _) | (0x5, _) | (0x6, _) | (0x7, _) => { // GPU Registers
+                                    if address < 0xFF4C {
+                                        return self.gpu.read_register(address);
+                                    } else {
+                                        return 0xFF;
+                                    }
+                                },
+                                (0x8, _) | (0x9, _) | (0xA, _) | (0xB, _) |
+                                (0xC, _) | (0xD, _) | (0xE, _) | (0xF, _) => { // Zero Page RAM
                                     return self.zram[(address & 0x7F) as usize];
                                 },
                                 _ => warn!("Tried to read a byte from unmapped address {:#X}", address)
@@ -186,24 +304,27 @@ impl MMU {
             let addr_nibble_1 = (address & 0xF000) >> 12;
             let addr_nibble_2 = (address & 0x0F00) >> 8;
             let addr_nibble_3 = (address & 0x00F0) >> 4;
+            let addr_nibble_4 =  address & 0x000F;
 
             match addr_nibble_1 {
-                0x0 | 0x1 => { // ROM Bank 0
-                    warn!("Tried to write to ROM Bank 0. {:#06X} = {}", address, value);
+                0x0 | 0x1 => {
+                    trace!("Updating external RAM setting.");
+                    self.update_external_ram(value);
                     return;
                 },
                 0x2 | 0x3 => {
-                    trace!("Changing active ROM bank.");
+                    trace!("Updating active ROM bank.");
                     self.update_active_rom_bank(value);
                     return;
                 },
-                0x4 | 0x5 => { // Switchable ROM Bank
-                    warn!("Tried to write to Switchable ROM Bank. {:#06X} = {}", address, value);
+                0x4 | 0x5 => {
+                    trace!("Updating ROM/RAM bank.");
+                    self.update_active_rom_ram_bank(value);
                     return;
                 },
                 0x6 | 0x7 => {
-                    trace!("Changing memory model.");
-                    self.update_memory_model(value);
+                    trace!("Updating memory model.");
+                    self.update_memory_mode(value);
                     return;
                 },
                 0x8 | 0x9 => { // Video RAM
@@ -211,7 +332,9 @@ impl MMU {
                     return;
                 },
                 0xA | 0xB => { // External RAM (switchable RAM bank)
-                    self.eram[(address - 0xA000) as usize] = value;
+                    if self.active_external_ram {
+                        self.eram[(address - 0xA000) as usize] = value;
+                    }
                     return;
                 },
                 0xC | 0xD => { // Working RAM (internal RAM)
@@ -242,21 +365,37 @@ impl MMU {
                             }
                         },
                         0xF => { // I/O Ports, Zero Page RAM, Int Enable Register
-                            if address == 0xFF00 { // Joypad
-                                self.gpu.input.write(value);
-                            }
-
-                            if address == 0xFFFF { // Int Enable Register
-                                self.interrupt_enable_register = value;
-                                return;
-                            }
-
-                            match addr_nibble_3 {
-                                0x0 | 0x1 | 0x2 | 0x3 => { // I/O Ports
+                            match (addr_nibble_3, addr_nibble_4) {
+                                (0x0, 0x0) => { // Joypad
+                                    self.gpu.input.write(value);
+                                    return;
+                                },
+                                (0x0, 0x4) => { // Timer - DIV
+                                    self.timer.div = 0;
+                                    return;
+                                },
+                                (0x0, 0x5) => { // Timer - TIMA
+                                    self.timer.tima = value;
+                                    return;
+                                },
+                                (0x0, 0x6) => { // Timer - TMA
+                                    self.timer.tma = value;
+                                    return;
+                                },
+                                (0x0, 0x7) => { // Timer - TAC
+                                    self.timer.tac = value & 0x7;
+                                    self.timer.update();
+                                    return;
+                                },
+                                (0xF, 0xF) => { // Interrupt Enable Register
+                                    self.interrupt_enable_register = value;
+                                    return;
+                                },
+                                (0x0, _) | (0x1, _) | (0x2, _) | (0x3, _) => { // I/O Ports
                                     self.io_ports[(address - 0xFF00) as usize] = value;
                                     return;
                                 },
-                                0x4 | 0x5 | 0x6 | 0x7 => { // GPU Registers
+                                (0x4, _) | (0x5, _) | (0x6, _) | (0x7, _) => { // GPU Registers
                                     if address == 0xFF50 && value == 0x01 {
                                         debug!("BIOS has finished running");
                                         self.is_bios_mapped = false;
@@ -265,8 +404,8 @@ impl MMU {
                                     }
                                     return;
                                 },
-                                0x8 | 0x9 | 0xA | 0xB |
-                                0xC | 0xD | 0xE | 0xF => { // Zero Page RAM
+                                (0x8, _) | (0x9, _) | (0xA, _) | (0xB, _) |
+                                (0xC, _) | (0xD, _) | (0xE, _)| (0xF, _) => { // Zero Page RAM
                                     self.zram[(address & 0x7F) as usize] = value;
                                     return;
                                 },
@@ -286,17 +425,6 @@ impl MMU {
         self.write_byte(address + 1, (value >> 8) as u8);
     }
 
-    pub fn timer_tick(&mut self, clock_t: u32) {
-        // TODO
-
-        // Bit 2    - Timer Stop  (0=Stop, 1=Start)
-        // Bits 1-0 - Input Clock Select
-        // 00:   4096 Hz    (~4194 Hz SGB)
-        // 01: 262144 Hz  (~268400 Hz SGB)
-        // 10:  65536 Hz   (~67110 Hz SGB)
-        // 11:  16384 Hz   (~16780 Hz SGB)
-    }
-
     pub fn set_cartridge_type(&mut self, value: u8) {
         self.cartridge_type = value;
     }
@@ -314,8 +442,33 @@ impl MMU {
         }
     }
 
+    fn update_external_ram(&mut self, value: u8) {
+        // TODO - Finish MBC2,3,5 support
+        match self.cartridge_type {
+            ROM_ONLY | MBC1 => {
+                trace!("Tried to update external RAM on a cartridge with no RAM.");
+                return;
+            },
+            MBC1_RAM | MBC1_RAM_BATT => {
+                //TODO - trace
+                debug!("Updating external RAM - {:#04X}. 0x0A = enable, all else disable", value);
+
+                if value == 0x0A {
+                    self.active_external_ram = true;
+                } else {
+                    self.active_external_ram = false;
+                }
+            },
+            _ => {
+                //TODO - trace
+                debug!("Tried to update external RAM on an unknown/unsupported cartridge type - Cart Type:{:#04X} - Value:{}", self.cartridge_type, value);
+                exit(1);
+            }
+        }
+    }
+
     fn update_active_rom_bank(&mut self, value: u8) {
-        // TODO - Finish MBC1,2,3,5 support
+        // TODO - Finish MBC2,3,5 support
         match self.cartridge_type {
             ROM_ONLY => {
                 trace!("Tried to change active ROM bank on a ROM_ONLY cartridge.");
@@ -323,51 +476,72 @@ impl MMU {
             },
             MBC1 | MBC1_RAM | MBC1_RAM_BATT => {
                 //TODO - trace
-                debug!("Switching ROM Bank {}", value);
+                debug!("Updating ROM Bank {}", value);
 
                 if value == 0 {
                     self.active_rom_bank = 1;
                 } else if value < self.rom_size && value < 32 {
                     self.active_rom_bank = value;
                 } else {
-                    error!("Tried to assign invalid ROM bank {}, should be 0-{}.", value, self.rom_size);
+                    error!("Tried to assign invalid ROM bank {}, should be 0-31.", value);
                     exit(1);
                 }
-
             },
             _ => {
                 //TODO - trace
-                debug!("Tried to change active ROM bank on an unknown/unsupported cartridge type - CT:{:#04X} - Value:{}", self.cartridge_type, value);
+                debug!("Tried to change active ROM bank on an unknown/unsupported cartridge type - Cart Type:{:#04X} - Value:{}", self.cartridge_type, value);
                 exit(1);
             }
         }
     }
 
-    fn update_memory_model(&mut self, value: u8) {
-        // TODO - Finish MBC1,2,3,5 support
+    fn update_active_rom_ram_bank(&mut self, value: u8) {
+        // TODO - Finish MBC2,3,5 support
         match self.cartridge_type {
             ROM_ONLY => {
-                if value == 0 || value == 1 {
-                    return;
-                } else {
-                    trace!("Tried to change memory model on a ROM_ONLY cartridge.");
-                    return;
-                }
+                trace!("Tried to change active ROM/RAM bank on a ROM_ONLY cartridge.");
+                return;
             },
             MBC1 | MBC1_RAM | MBC1_RAM_BATT => {
-                if value & 0x1 == 1 {
-                    //TODO - trace
-                    debug!("Memory Model set to 1");
-                    self.memory_model = 1;
-                } else {
-                    //TODO - trace
-                    debug!("Memory Model set to 0");
-                    self.memory_model = 0;
+                if self.memory_mode == 0 {
+                    // ROM Mode
+                    trace!("Updating active ROM bank. {}", (self.active_rom_bank & 0x1F) + ((value & 3) << 5));
+                    self.active_rom_bank = (self.active_rom_bank & 0x1F) + ((value & 3) << 5);
+                } else if self.memory_mode == 1 {
+                    // RAM Mode
+                    trace!("Updating active RAM bank. {}", value);
+                    self.active_ram_bank = value & 3;
                 }
             },
             _ => {
                 //TODO - trace
-                debug!("Tried to change memory model on an unknown/unsupported cartridge type - CT:{:#04X} - Value:{}", self.cartridge_type, value);
+                debug!("Tried to change active ROM/RAM bank on an unknown/unsupported cartridge type - Cart Type:{:#04X} - Value:{}", self.cartridge_type, value);
+                exit(1);
+            }
+        }
+    }
+
+    fn update_memory_mode(&mut self, value: u8) {
+        // TODO - Finish MBC2,3,5 support
+        match self.cartridge_type {
+            ROM_ONLY | MBC1 => {
+                trace!("Tried to change memory mode on a cartridge that only has ROM.");
+                return;
+            },
+            MBC1_RAM | MBC1_RAM_BATT => {
+                if value & 0x1 == 1 {
+                    //TODO - trace
+                    debug!("Memory Mode set to 1");
+                    self.memory_mode = 1;
+                } else {
+                    //TODO - trace
+                    debug!("Memory Mode set to 0");
+                    self.memory_mode = 0;
+                }
+            },
+            _ => {
+                //TODO - trace
+                debug!("Tried to change memory mode on an unknown/unsupported cartridge type - Cart Type:{:#04X} - Value:{}", self.cartridge_type, value);
                 exit(1);
             }
         }

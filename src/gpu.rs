@@ -3,7 +3,7 @@ use std::process::exit;
 use sdl2::{EventPump, Sdl};
 use sdl2::pixels::Color;
 use sdl2::rect::Point;
-use sdl2::render::Canvas;
+use sdl2::render::{BlendMode, Canvas};
 use sdl2::video::Window;
 
 use crate::input::Input;
@@ -58,7 +58,7 @@ pub struct GPU {
     object_data: [Sprite; 40],
     tileset: Box<[Vec<Vec<u8>>]>,
     state: u8,
-    state_clock: u32,
+    state_clock: u16,
     lcd_control: u8,
     lcd_status: u8, // TODO - implement and use this
     scroll_y: u8,
@@ -73,82 +73,52 @@ pub struct GPU {
     window_x: u8,
     gpu_registers: [u8; 52],
     palette_reference: [Color; 4],
-    sprite_palette_reference: [Color; 4],
     lock_vram: bool,
     pub debug: bool
 }
 
 impl GPU {
-    pub fn new() -> GPU {
+    pub fn new() -> Self {
         debug!("Initializing GPU");
 
         let sdl_context = sdl2::init().unwrap();
-        let canvas = sdl_context.video().unwrap()
+        let mut canvas = sdl_context.video().unwrap()
             .window("RustBoy", 160, 144).position(800, 100).build().unwrap()
             .into_canvas().accelerated().build().unwrap();
+        canvas.set_blend_mode(BlendMode::Blend);
         let vram_debug_canvas = sdl_context.video().unwrap()
             .window("GPU", 256, 256).position(800, 300).hidden().build().unwrap()
             .into_canvas().accelerated().build().unwrap();
         let event_pump = sdl_context.event_pump().unwrap();
-        let input = Input::new();
-        let vram = [0; 8192];
-        let oam = [0; 160];
-        let object_data = [Sprite::new(); 40];
-        let tileset = vec![vec![vec![0u8; 8]; 8]; 384].into_boxed_slice();
-        let state = STATE_OAM_READ;
-        let state_clock = 0;
-        let lcd_control = 0;
-        let lcd_status = 0;
-        let scroll_y = 0;
-        let scroll_x = 0;
-        let render_line = 0;
-        let ly_compare = 0;
-        let dma_transfer = 0;
-        let palette = [0; 4];
-        let sprite_palette_0 = [0; 4];
-        let sprite_palette_1 = [0; 4];
-        let window_y = 0;
-        let window_x = 0;
-        let gpu_registers= [0; 52];
-        // Green Palette - OG GameBoy
-        let palette_reference = [Color::RGB(155,188,15), Color::RGB(139,172,15), Color::RGB(48,98,48), Color::RGB(15,56,15)];
-        // TODO - 00 should be transparent
-        let sprite_palette_reference = [Color::RGB(155,188,15), Color::RGB(139,172,15), Color::RGB(48,98,48), Color::RGBA(0,0,0,0)];
-        // B&W Palette - GameBoy Pocket
-        // let palette_reference = [Color::RGBA(255,255,255,100), Color::RGBA(192,192,192,100), Color::RGBA(96,96,96,100), Color::RGBA(0,0,0,100)];
-        // let sprite_palette_reference = [Color::RGBA(255,255,255,100), Color::RGBA(192,192,192,100), Color::RGBA(96,96,96,100), Color::RGBA(0,0,0,0)];
-        let lock_vram = false;
-        let debug = false;
 
         GPU {
             sdl_context,
             canvas,
             vram_debug_canvas,
             event_pump,
-            input,
-            vram,
-            oam,
-            object_data,
-            tileset,
-            state,
-            state_clock,
-            lcd_control,
-            lcd_status,
-            scroll_y,
-            scroll_x,
-            render_line,
-            ly_compare,
-            dma_transfer,
-            palette,
-            sprite_palette_0,
-            sprite_palette_1,
-            window_y,
-            window_x,
-            gpu_registers,
-            palette_reference,
-            sprite_palette_reference,
-            lock_vram,
-            debug
+            input: Input::new(),
+            vram: [0; 8192],
+            oam: [0; 160],
+            object_data: [Sprite::new(); 40],
+            tileset: vec![vec![vec![0u8; 8]; 8]; 384].into_boxed_slice(),
+            state: STATE_OAM_READ,
+            state_clock: 0,
+            lcd_control: 0,
+            lcd_status: 0,
+            scroll_y: 0,
+            scroll_x: 0,
+            render_line: 0,
+            ly_compare: 0,
+            dma_transfer: 0,
+            palette: [0; 4],
+            sprite_palette_0: [0; 4],
+            sprite_palette_1: [0; 4],
+            window_y: 0,
+            window_x: 0,
+            gpu_registers: [0; 52],
+            palette_reference: [Color::RGB(155,188,15), Color::RGB(139,172,15), Color::RGB(48,98,48), Color::RGB(15,56,15)],
+            lock_vram: false,
+            debug: false
         }
     }
 
@@ -401,7 +371,13 @@ impl GPU {
                         }
 
                         if object.x + x >= 0 && object.x + x < 160 && tile != 0 && object.bg_priority || scan_row[(object.x + x) as usize] == 0 {
-                            let color = self.sprite_palette_reference[sprite_palette[tile as usize] as usize];
+                            let color;
+                            let tile_palette = sprite_palette[tile as usize];
+                            if tile_palette == 0 {
+                                color = Color::RGBA(0,0,0,0);
+                            } else {
+                                color = self.palette_reference[tile_palette as usize];
+                            }
                             self.canvas.set_draw_color(color);
 
                             let result = self.canvas.draw_point(Point::new(object.x as i32 + x as i32, self.render_line as i32));
@@ -463,10 +439,10 @@ impl GPU {
         }
     }
 
-    pub fn tick(&mut self, clock_t: u32) -> bool {
+    pub fn tick(&mut self, clock_t: u8) -> bool {
         let mut entered_vblank = false;
 
-        self.state_clock += clock_t;
+        self.state_clock += clock_t as u16;
 
         match self.state {
             STATE_OAM_READ => {

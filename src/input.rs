@@ -4,15 +4,12 @@ pub struct Input {
 }
 
 impl Input {
-    pub fn new() -> Input {
+    pub fn new() -> Self {
         debug!("Initializing Input");
 
-        let column = 0;
-        let keys = [0x0F; 2];
-
         Input {
-            column,
-            keys
+            column: 0,
+            keys: [0x0F; 2]
         }
     }
 
